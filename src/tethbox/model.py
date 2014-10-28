@@ -4,9 +4,9 @@ from google.appengine.ext import ndb
 
 
 class Account(ndb.Model):
-    email = ndb.StringProperty(required=True, indexed=True)
-    created_at = ndb.DateTimeProperty(required=True, indexed=False, auto_now_add=True)
-    valid_until = ndb.DateTimeProperty(required=True, indexed=True)
+    email = ndb.StringProperty(required=True)
+    created_at = ndb.DateTimeProperty(required=True, auto_now_add=True)
+    valid_until = ndb.DateTimeProperty(required=True)
 
     @property
     def expire_in(self):
