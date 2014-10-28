@@ -136,6 +136,7 @@ var tethbox = (function() {
 				account = data.account;
 				updateAccountValues();
 				checkInbox();
+				startTimer();
 			}
 		);
 	}
