@@ -1,11 +1,15 @@
 from datetime import datetime
 import logging
 
+import lxml
+from lxml.html.clean import clean_html
 from google.appengine.ext.webapp.mail_handlers import InboundMailHandler
 import webapp2
 
 from tethbox.model import Account, Message
 
+
+lxml.html.defs.safe_attrs |= set(['style'])
 
 class IncomingMailHandler(InboundMailHandler):
 
@@ -24,7 +28,7 @@ class IncomingMailHandler(InboundMailHandler):
             subject = mail_message.subject,
             date = datetime.now(),
             body = mail_message.body.decode(),
-            html = mail_message.html.decode()
+            html = clean_html(mail_message.html.decode())
         )
         message.put()
         # TODO: store attachments

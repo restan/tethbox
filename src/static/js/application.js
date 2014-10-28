@@ -165,7 +165,7 @@ var tethbox = (function() {
 
 	var displayMessage = function(message) {
 		$('#messageModal .modal-title').text(message.subject);
-		$('#messageModal .modal-body').text(message.html);
+		$('#messageModal .modal-body').html(message.html);
 		$('#messageModal').modal('show');
 	}
 

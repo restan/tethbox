@@ -29,5 +29,5 @@ class Message(ndb.Model):
     bcc = ndb.StringProperty(required=False)
     subject = ndb.StringProperty(required=True)
     date = ndb.DateTimeProperty(required=True)
-    body = ndb.StringProperty()
-    html = ndb.StringProperty()
+    body = ndb.TextProperty()
+    html = ndb.TextProperty()
