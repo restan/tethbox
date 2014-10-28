@@ -59,7 +59,7 @@ class BaseHandler(webapp2.RequestHandler):
     def _create_unique_email_address(self):
         _, number = Account.allocate_ids(1)
         user = base62_encode(number)
-        return '%s@%s.appspot.com' % (user, app_identity.get_application_id())
+        return '%s@%s.appspotmail.com' % (user, app_identity.get_application_id())
 
 
 class InitHandler(BaseHandler):
