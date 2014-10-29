@@ -92,12 +92,13 @@ var tethbox = (function() {
 		var newTbody = $('<tbody>');
 		for (var i in messages) {
 			var message = messages[i];
-			$("<tr>")
+			$('<tr>').addClass(message.read ? '' : 'unread')
 				.append($('<td>').text(message.sender))
 				.append($('<td>').text(message.subject))
 				.append($('<td>').text(new Date(message.date * 1000).toLocaleString()))
-				.click(function() {
-					openMessage(message.key);
+				.click({'key': message.key}, function(event) {
+					openMessage(event.data.key);
+					$(this).removeClass('unread');
 				})
 				.appendTo(newTbody);
 		}

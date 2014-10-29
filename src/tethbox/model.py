@@ -31,3 +31,4 @@ class Message(ndb.Model):
     date = ndb.DateTimeProperty(required=True)
     body = ndb.TextProperty()
     html = ndb.TextProperty()
+    read = ndb.BooleanProperty(required=True, default=False)

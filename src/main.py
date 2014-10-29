@@ -98,7 +98,8 @@ class InboxHandler(BaseHandler):
                         'key': message.key.urlsafe(),
                         'sender': message.sender,
                         'date': to_timestamp(message.date),
-                        'subject': message.subject
+                        'subject': message.subject,
+                        'read': message.read
                     } for message in messages
                 ]
             }
@@ -136,6 +137,9 @@ class MessageHandler(BaseHandler):
                 self.response.content_type = 'application/json'
                 self.charset = 'utf8'
                 self.response.out.write(json.dumps(response))
+                if not message.read:
+                    message.read = True
+                    message.put()
 
 
 class NewAccountHandler(BaseHandler):
