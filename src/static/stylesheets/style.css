@@ -1,0 +1,16 @@
+#account-management {
+	margin-top: 20px;
+}
+
+#account-management .input-group-btn button {
+	width: 80px;
+}
+
+#account-management input[readonly] {
+	cursor: default;
+	background-color: #ffffff;
+}
+
+#inbox tbody tr {
+	cursor: pointer;
+}

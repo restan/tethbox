@@ -4,14 +4,15 @@
 		<meta charset="utf-8">
 		<title>TethBox - temporary mailbox</title>
 		<link href="//maxcdn.bootstrapcdn.com/bootswatch/3.2.0/united/bootstrap.min.css" rel="stylesheet">
+		<link href="/stylesheets/style.css" rel="stylesheet">
 	</head>
 	<body>
 		<div class="jumbotron">
 			<div class="container text-center">
 				<h1>TethBox</h1>
-				<form class="form-horizontal col-md-6 col-md-offset-3" role="form">
+				<form id="account-management" class="form-horizontal col-md-6 col-md-offset-3 account-data" role="form">
 					<div class="form-group">
-						<label for="emailAddress" class="col-sm-4 control-label">Your email address</label>
+						<label for="email" class="col-sm-4 control-label">Your email address</label>
 						<div class="col-sm-8">
 							<div class="input-group">
 								<input id="email" class="form-control" type="text" value="" readonly/>
@@ -22,19 +23,19 @@
 						</div>
 					</div>
 					<div class="form-group">
-						<label for="expireIn" class="col-sm-4 control-label">Expire in</label>
+						<label for="expire-in" class="col-sm-4 control-label">Expire in</label>
 						<div class="col-sm-8">
 							<div class="input-group">
-								<input id="expireIn" class="form-control" type="text" value="" readonly/>
+								<input id="expire-in" class="form-control" type="text" value="" readonly/>
 								<span class="input-group-btn">
-									<button id="resetTimer" class="btn btn-primary" type="button">Reset</button>
+									<button id="reset-timer-button" class="btn btn-primary" type="button">Reset</button>
 								</span>
 							</div>
 						</div>
 					</div>
 					<div class="form-group">
 						<div class="col-md-4 col-md-offset-4">
-							<button id="newAccount" class="btn btn-primary col-xs-12" type="button">Get new address</button>
+							<button id="new-account-button" class="btn btn-primary col-xs-12" type="button">Get new address</button>
 						</div>
 					</div>
 				</form>
@@ -54,7 +55,7 @@
 			</table>
 		</div>
 
-		<div id="messageModal" class="modal fade">
+		<div id="message-modal" class="modal fade">
 			<div class="modal-dialog modal-lg">
 				<div class="modal-content">
 					<div class="modal-header">

@@ -10,15 +10,24 @@ var tethbox = (function() {
 	}
 
 	var initCopyButton = function() {
-		new ZeroClipboard($(".copy-button"));
+		var client = new ZeroClipboard($('.copy-button'));
+		client.on('aftercopy', function(event) {
+			event.target.blur();
+		});
 	}
 
 	var initResetTimerButton = function() {
-		$('#resetTimer').click(resetTimer);
+		$('#reset-timer-button').click(function() {
+			resetTimer();
+			this.blur();
+		});
 	}
 
 	var initNewAccountButton = function() {
-		$('#newAccount').click(newAccount);
+		$('#new-account-button').click(function() {
+			newAccount();
+			this.blur();
+		});
 	}
 
 	var getAccount = function() {
@@ -47,7 +56,7 @@ var tethbox = (function() {
 	}
 
 	var updateTimerValue = function() {
-		$('#expireIn').val(account !== null ? timestampToReadable(account.expireIn) : '');
+		$('#expire-in').val(account !== null ? timestampToReadable(account.expireIn) : '');
 	}
 
 	var showInbox = function() {
@@ -136,7 +145,9 @@ var tethbox = (function() {
 				account = data.account;
 				updateAccountValues();
 				checkInbox();
-				startTimer();
+				if (timer === null) {
+					startTimer();
+				}
 			}
 		);
 	}
@@ -165,9 +176,9 @@ var tethbox = (function() {
 	}
 
 	var displayMessage = function(message) {
-		$('#messageModal .modal-title').text(message.subject);
-		$('#messageModal .modal-body').html(message.html);
-		$('#messageModal').modal('show');
+		$('#message-modal .modal-title').text(message.subject);
+		$('#message-modal .modal-body').html(message.html);
+		$('#message-modal').modal('show');
 	}
 
 	var timestampToReadable = function(timestamp) {
