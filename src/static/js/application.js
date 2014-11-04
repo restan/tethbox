@@ -1,7 +1,32 @@
 var tethbox = (function() {
+
+	var api = (function() {
+		return {
+			init: function() {
+				return $.getJSON('/init');
+			},
+
+			getInbox: function() {
+				return $.getJSON('/inbox');
+			},
+
+			createNewAccount: function() {
+				return $.getJSON('/newAccount');
+			},
+
+			resetAccountTimer: function() {
+				return $.getJSON('/resetTimer');
+			},
+
+			getMessage: function(key) {
+				return $.getJSON('/message/' + key);
+			}
+		};
+	})();
+
 	var account = null;
 	var messages = [];
-	var timer = null;
+	var localTimer = null;
 
 	var initButtons = function() {
 		initCopyButton();
@@ -18,27 +43,24 @@ var tethbox = (function() {
 
 	var initResetTimerButton = function() {
 		$('#reset-timer-button').click(function() {
-			resetTimer();
+			resetAccountTimer();
 			this.blur();
 		});
 	}
 
 	var initNewAccountButton = function() {
 		$('#new-account-button').click(function() {
-			newAccount();
+			createNewAccount();
 			this.blur();
 		});
 	}
 
-	var getAccount = function() {
-		$.getJSON(
-			'/init',
-			function(data) {
-				account = data.account;
-				updateAccountValues();
-				checkInbox();
-			}
-		);
+	var initAccount = function() {
+		api.init().done(function(data) {
+			account = data.account;
+			updateAccountValues();
+			checkInbox();
+	    });
 	}
 
 	var updateAccountValues = function() {
@@ -68,20 +90,17 @@ var tethbox = (function() {
 	}
 
 	var checkInbox = function() {
-		$.getJSON(
-			'/inbox'
-		).done(function(data) {
-				var accountChanged = account.email != data.account.email;
-				if (accountChanged) {
-					account = data.account;
-					updateAccountValues();
-				} else {
-					account.expireIn = data.account.expireIn;
-				}
-				messages = data.messages;
-				updateMessageList();
+		api.getInbox().done(function(data) {
+			var accountChanged = account && account.email != data.account.email;
+			if (accountChanged) {
+				account = data.account;
+				updateAccountValues();
+			} else {
+				account.expireIn = data.account.expireIn;
 			}
-		).fail(function(jqxhr, textStatus, error) {
+			messages = data.messages;
+			updateMessageList();
+		}).fail(function(jqxhr, textStatus, error) {
 			if (jqxhr.status == 410) {
 				accountExpired();
 			}
@@ -105,9 +124,51 @@ var tethbox = (function() {
 		$('#inbox tbody').replaceWith(newTbody);
 	}
 
-	var startTimer = function() {
-		timer = setTimeout(function(){
-			startTimer();
+	var createNewAccount = function() {
+		api.createNewAccount().done(function(data) {
+			account = data.account;
+			updateAccountValues();
+			checkInbox();
+			if (localTimer === null) {
+				startLocalTimer();
+			}
+		});
+	}
+
+	var resetAccountTimer = function() {
+		api.resetAccountTimer().done(function(data) {
+			account = data.account;
+			updateAccountValues();
+		});
+	}
+
+	var openMessage = function(key) {
+		api.getMessage(key).done(function(data) {
+			displayMessage(data.message);
+		});
+	}
+
+	var displayMessage = function(message) {
+		$('#message-modal .modal-title').text(message.subject);
+		$('#message-modal .modal-body').html(message.html);
+		$('#message-modal').modal('show');
+	}
+
+	var accountExpired = function() {
+		resetData();
+	}
+
+	var resetData = function() {
+		account = null;
+		messages = [];
+		stopLocalTimer();
+		updateAccountValues();
+		updateMessageList();
+	}
+
+	var startLocalTimer = function() {
+		localTimer = setTimeout(function(){
+			startLocalTimer();
 			if (account && account.expireIn > 0) {
 				account.expireIn--;
 				updateTimerValue();
@@ -120,66 +181,11 @@ var tethbox = (function() {
 		}, 1000);
 	}
 
-	var stopTimer = function() {
-		if (timer !== null) {
-			clearTimeout(timer);
-			timer = null;
+	var stopLocalTimer = function() {
+		if (localTimer !== null) {
+			clearTimeout(localTimer);
+			localTimer = null;
 		}
-	}
-
-	var accountExpired = function() {
-		resetData();
-	}
-
-	var resetData = function() {
-		account = null;
-		messages = [];
-		stopTimer();
-		updateAccountValues();
-		updateMessageList();
-	}
-
-	var newAccount = function() {
-		$.getJSON(
-			'/newAccount',
-			function(data) {
-				account = data.account;
-				updateAccountValues();
-				checkInbox();
-				if (timer === null) {
-					startTimer();
-				}
-			}
-		);
-	}
-
-	var resetTimer = function() {
-		$.getJSON(
-			'/resetTimer',
-			function(data) {
-				account = data.account;
-				updateAccountValues();
-			}
-		);
-	}
-
-	var openMessage = function(key) {
-		getMessage(key, displayMessage);
-	}
-
-	var getMessage = function(key, callback) {
-		$.getJSON(
-			'/message/' + key,
-			function(data) {
-				callback(data.message);
-			}
-		);
-	}
-
-	var displayMessage = function(message) {
-		$('#message-modal .modal-title').text(message.subject);
-		$('#message-modal .modal-body').html(message.html);
-		$('#message-modal').modal('show');
 	}
 
 	var timestampToReadable = function(timestamp) {
@@ -192,8 +198,8 @@ var tethbox = (function() {
 	return {
 		init: function() {
 			initButtons();
-			getAccount();
-			startTimer();
+			initAccount();
+			startLocalTimer();
 		}
-	}
+	};
 }());
