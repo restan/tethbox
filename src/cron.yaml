@@ -1,0 +1,4 @@
+cron:
+- description: delete messages from expired accounts
+  url: /_cron/clearAccounts
+  schedule: every 1 minutes

@@ -7,6 +7,7 @@ class Account(ndb.Model):
     email = ndb.StringProperty(required=True)
     created_at = ndb.DateTimeProperty(required=True, auto_now_add=True)
     valid_until = ndb.DateTimeProperty(required=True)
+    cleared = ndb.BooleanProperty(required=True, default=False)
 
     @property
     def expire_in(self):
@@ -18,7 +19,7 @@ class Account(ndb.Model):
 
     @classmethod
     def get_by_email(cls, email):
-        return cls.query(Account.email==email).get()
+        return cls.query(Account.email == email).get()
 
 
 class Message(ndb.Model):
