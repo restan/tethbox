@@ -9,7 +9,8 @@ import webapp2
 from tethbox.model import Account, Message
 
 
-lxml.html.defs.safe_attrs |= set(['style'])
+lxml.html.defs.safe_attrs |= {'style'}
+
 
 class IncomingMailHandler(InboundMailHandler):
 
@@ -20,15 +21,15 @@ class IncomingMailHandler(InboundMailHandler):
             return
         message = Message(
             parent=account.key,
-            sender = mail_message.sender,
-            to = mail_message.to,
-            reply_to = getattr(mail_message, 'reply_to', None),
-            cc = getattr(mail_message, 'cc', None),
-            bcc = getattr(mail_message, 'bcc', None),
-            subject = mail_message.subject,
-            date = datetime.now(),
-            body = mail_message.body.decode(),
-            html = clean_html(mail_message.html.decode())
+            sender=mail_message.sender,
+            to=mail_message.to,
+            reply_to=getattr(mail_message, 'reply_to', None),
+            cc=getattr(mail_message, 'cc', None),
+            bcc=getattr(mail_message, 'bcc', None),
+            subject=mail_message.subject,
+            date=datetime.now(),
+            body=mail_message.body.decode(),
+            html=clean_html(mail_message.html.decode())
         )
         message.put()
         # TODO: store attachments

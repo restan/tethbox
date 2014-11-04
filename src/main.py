@@ -1,7 +1,6 @@
 from datetime import datetime, timedelta
 import json
 import logging
-from random import randint
 import string
 
 from google.appengine.api import app_identity
@@ -24,11 +23,37 @@ def base62_encode(number):
         number /= BASE62_SIZE
     return result
 
+
 def to_timestamp(datetime_):
     return int((datetime_ - EPOCH).total_seconds())
 
 
+def get_account(session):
+    account_id = session.get('account_id')
+    if account_id:
+        account = Account.get_by_id(account_id)
+        if account and account.is_valid:
+            return account
+
+
+def create_account(session):
+    account = Account(
+        email=create_unique_email_address(),
+        valid_until=datetime.now()+timedelta(seconds=600)
+    )
+    account.put()
+    session['account_id'] = account.key.id()
+    return account
+
+
+def create_unique_email_address():
+    _, number = Account.allocate_ids(1)
+    user = base62_encode(number)
+    return '%s@%s.appspotmail.com' % (user, app_identity.get_application_id())
+
+
 class BaseHandler(webapp2.RequestHandler):
+
     def dispatch(self):
         self.session_store = sessions.get_store(request=self.request)
         try:
@@ -40,55 +65,43 @@ class BaseHandler(webapp2.RequestHandler):
     def session(self):
         return self.session_store.get_session(backend='memcache')
 
-    def _get_account(self):
-        account_id = self.session.get('account_id')
-        if account_id:
-            account = Account.get_by_id(account_id)
-            if account and account.is_valid:
-                return account
 
-    def _create_account(self):
-        account = Account(
-            email=self._create_unique_email_address(),
-            valid_until=datetime.now()+timedelta(seconds=600)
-        )
-        account.put()
-        self.session['account_id'] = account.key.id()
-        return account
+class JsonHandler(BaseHandler):
 
-    def _create_unique_email_address(self):
-        _, number = Account.allocate_ids(1)
-        user = base62_encode(number)
-        return '%s@%s.appspotmail.com' % (user, app_identity.get_application_id())
+    def get(self, *args, **kwargs):
+        response = self.get_json(*args, **kwargs)
+        self.response.content_type = 'application/json'
+        self.response.charset = 'utf8'
+        self.response.out.write(json.dumps(response))
+
+    def get_json(self, *args, **kwargs):
+        raise NotImplementedError()
 
 
-class InitHandler(BaseHandler):
+class InitHandler(JsonHandler):
 
-    def get(self):
-        account = self._get_account()
+    def get_json(self):
+        account = get_account(self.session)
         if account:
             logging.info("Account already exists: %s" % account.email)
         else:
-            account = self._create_account()
+            account = create_account(self.session)
             logging.info("Account created: %s" % account.email)
-        response = {
+        return {
             'account': {
                 'email': account.email,
                 'expireIn': account.expire_in
             }
         }
-        self.response.content_type = 'application/json'
-        self.charset = 'utf8'
-        self.response.out.write(json.dumps(response))
 
 
-class InboxHandler(BaseHandler):
+class InboxHandler(JsonHandler):
 
-    def get(self):
-        account = self._get_account()
+    def get_json(self):
+        account = get_account(self.session)
         if account:
             messages = Message.query(ancestor=account.key).order(Message.date)
-            response = {
+            return {
                 'account': {
                     'email': account.email,
                     'expireIn': account.expire_in
@@ -103,29 +116,29 @@ class InboxHandler(BaseHandler):
                     } for message in messages
                 ]
             }
-            self.response.content_type = 'application/json'
-            self.charset = 'utf8'
-            self.response.out.write(json.dumps(response))
         else:
-            self.response.status = '410 Gone'
+            self.abort(410)
 
 
-class MessageHandler(BaseHandler):
+class MessageHandler(JsonHandler):
 
-    def get(self, key):
+    def get_json(self, key):
         try:
             message_key = ndb.Key(urlsafe=key)
             message = message_key.get()
         except Exception as e:
             logging.exception(e)
-            self.response.status = '404 Not Found'
+            self.abort(404)
         else:
-            account = self._get_account()
+            account = get_account(self.session)
             message_account_key = message_key.parent()
             if not account or account.key != message_account_key:
-                self.response.status = '403 Forbidden'
+                self.abort(403)
             else:
-                response = {
+                if not message.read:
+                    message.read = True
+                    message.put()
+                return {
                     'message': {
                         'key': key,
                         'sender': message.sender,
@@ -134,53 +147,41 @@ class MessageHandler(BaseHandler):
                         'html': message.html
                     }
                 }
-                self.response.content_type = 'application/json'
-                self.charset = 'utf8'
-                self.response.out.write(json.dumps(response))
-                if not message.read:
-                    message.read = True
-                    message.put()
 
 
-class NewAccountHandler(BaseHandler):
+class NewAccountHandler(JsonHandler):
 
-    def get(self):
-        account = self._get_account()
+    def get_json(self):
+        account = get_account(self.session)
         if account:
             account.valid_until = datetime.now()
             account.put()
             logging.info("Account closed: %s" % account.email)
-        account = self._create_account()
+        account = create_account(self.session)
         logging.info("Account created: %s" % account.email)
-        response = {
+        return {
             'account': {
                 'email': account.email,
                 'expireIn': account.expire_in
             }
         }
-        self.response.content_type = 'application/json'
-        self.charset = 'utf8'
-        self.response.out.write(json.dumps(response))
 
 
-class ResetTimerHandler(BaseHandler):
+class ResetTimerHandler(JsonHandler):
 
-    def get(self):
-        account = self._get_account()
+    def get_json(self):
+        account = get_account(self.session)
         if account and account.is_valid:
             account.valid_until = datetime.now()+timedelta(seconds=600)
             account.put()
-            response = {
+            return {
                 'account': {
                     'email': account.email,
                     'expireIn': account.expire_in
                 }
             }
-            self.response.content_type = 'application/json'
-            self.charset = 'utf8'
-            self.response.out.write(json.dumps(response))
         else:
-            self.response.status = '403 Forbidden'
+            self.abort(403)
 
 
 config = {}
