@@ -1,9 +1,7 @@
 from datetime import datetime, timedelta
 import json
 import logging
-import string
 
-from google.appengine.api import app_identity
 from google.appengine.ext import ndb
 import os
 import webapp2
@@ -12,26 +10,11 @@ from webapp2_extras import sessions
 from tethbox.model import Account, Message
 
 
-BASE62_DIGITS = string.digits + string.letters
-BASE62_SIZE = len(BASE62_DIGITS)
 EPOCH = datetime(1970, 1, 1)
-
-
-def base62_encode(number):
-    result = ''
-    while number > 0:
-        result = BASE62_DIGITS[number%BASE62_SIZE] + result
-        number /= BASE62_SIZE
-    return result
 
 
 def to_timestamp(datetime_):
     return int((datetime_ - EPOCH).total_seconds())
-
-
-def max_account_validity():
-    return datetime.now() + \
-        timedelta(seconds=config['tethbox']['account_max_seconds'])
 
 
 def get_account(session):
@@ -43,19 +26,29 @@ def get_account(session):
 
 
 def create_account(session):
-    account = Account(
-        email=create_unique_email_address(),
-        valid_until=max_account_validity()
-    )
-    account.put()
+    account = Account.create()
     session['account_id'] = account.key.id()
     return account
 
 
-def create_unique_email_address():
-    _, number = Account.allocate_ids(1)
-    user = base62_encode(number)
-    return '%s@%s.appspotmail.com' % (user, app_identity.get_application_id())
+def account_to_dict(account):
+    return {
+        'email': account.email,
+        'expireIn': account.expire_in
+    }
+
+
+def message_to_dict(message, html=False):
+    result = {
+        'key': message.key.urlsafe(),
+        'sender': message.sender,
+        'date': to_timestamp(message.date),
+        'subject': message.subject,
+        'read': message.read
+    }
+    if html:
+        result['html'] = message.html
+    return result
 
 
 class BaseHandler(webapp2.RequestHandler):
@@ -92,12 +85,8 @@ class InitHandler(JsonHandler):
             logging.info("Account already exists: %s" % account.email)
         else:
             account = create_account(self.session)
-            logging.info("Account created: %s" % account.email)
         return {
-            'account': {
-                'email': account.email,
-                'expireIn': account.expire_in
-            }
+            'account': account_to_dict(account)
         }
 
 
@@ -108,18 +97,9 @@ class InboxHandler(JsonHandler):
         if account:
             messages = Message.query(ancestor=account.key).order(Message.date)
             return {
-                'account': {
-                    'email': account.email,
-                    'expireIn': account.expire_in
-                },
+                'account': account_to_dict(account),
                 'messages': [
-                    {
-                        'key': message.key.urlsafe(),
-                        'sender': message.sender,
-                        'date': to_timestamp(message.date),
-                        'subject': message.subject,
-                        'read': message.read
-                    } for message in messages
+                    message_to_dict(message) for message in messages
                 ]
             }
         else:
@@ -145,13 +125,7 @@ class MessageHandler(JsonHandler):
                     message.read = True
                     message.put()
                 return {
-                    'message': {
-                        'key': key,
-                        'sender': message.sender,
-                        'date': to_timestamp(message.date),
-                        'subject': message.subject,
-                        'html': message.html
-                    }
+                    'message': message_to_dict(message, html=True)
                 }
 
 
@@ -160,16 +134,10 @@ class NewAccountHandler(JsonHandler):
     def get_json(self):
         account = get_account(self.session)
         if account:
-            account.valid_until = datetime.now()
-            account.put()
-            logging.info("Account closed: %s" % account.email)
+            account.close()
         account = create_account(self.session)
-        logging.info("Account created: %s" % account.email)
         return {
-            'account': {
-                'email': account.email,
-                'expireIn': account.expire_in
-            }
+            'account': account_to_dict(account)
         }
 
 
@@ -178,13 +146,9 @@ class ResetTimerHandler(JsonHandler):
     def get_json(self):
         account = get_account(self.session)
         if account and account.is_valid:
-            account.valid_until = max_account_validity()
-            account.put()
+            account.extend_validity()
             return {
-                'account': {
-                    'email': account.email,
-                    'expireIn': account.expire_in
-                }
+                'account': account_to_dict(account)
             }
         else:
             self.abort(403)
@@ -193,9 +157,6 @@ class ResetTimerHandler(JsonHandler):
 config = {
     'webapp2_extras.sessions': {
         'secret_key': os.environ['SESSION_SECRET_KEY'],
-    },
-    'tethbox': {
-        'account_max_seconds': int(os.environ['ACCOUNT_MAX_SECONDS']),
     },
 }
 

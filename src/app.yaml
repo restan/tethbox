@@ -37,4 +37,3 @@ handlers:
 
 env_variables:
   SESSION_SECRET_KEY: 'session-secret-key'
-  ACCOUNT_MAX_SECONDS: 600
