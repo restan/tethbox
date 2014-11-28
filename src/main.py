@@ -5,6 +5,7 @@ import string
 
 from google.appengine.api import app_identity
 from google.appengine.ext import ndb
+import os
 import webapp2
 from webapp2_extras import sessions
 
@@ -28,6 +29,11 @@ def to_timestamp(datetime_):
     return int((datetime_ - EPOCH).total_seconds())
 
 
+def max_account_validity():
+    return datetime.now() + \
+        timedelta(seconds=config['tethbox']['account_max_seconds'])
+
+
 def get_account(session):
     account_id = session.get('account_id')
     if account_id:
@@ -39,7 +45,7 @@ def get_account(session):
 def create_account(session):
     account = Account(
         email=create_unique_email_address(),
-        valid_until=datetime.now()+timedelta(seconds=600)
+        valid_until=max_account_validity()
     )
     account.put()
     session['account_id'] = account.key.id()
@@ -172,7 +178,7 @@ class ResetTimerHandler(JsonHandler):
     def get_json(self):
         account = get_account(self.session)
         if account and account.is_valid:
-            account.valid_until = datetime.now()+timedelta(seconds=600)
+            account.valid_until = max_account_validity()
             account.put()
             return {
                 'account': {
@@ -184,9 +190,13 @@ class ResetTimerHandler(JsonHandler):
             self.abort(403)
 
 
-config = {}
-config['webapp2_extras.sessions'] = {
-    'secret_key': 'my-super-secret-key',
+config = {
+    'webapp2_extras.sessions': {
+        'secret_key': os.environ['SESSION_SECRET_KEY'],
+    },
+    'tethbox': {
+        'account_max_seconds': int(os.environ['ACCOUNT_MAX_SECONDS']),
+    },
 }
 
 app = webapp2.WSGIApplication([
