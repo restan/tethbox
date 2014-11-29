@@ -78,7 +78,7 @@ var tethbox = (function() {
 	}
 
 	var updateTimerValue = function() {
-		$('#expire-in').val(account !== null ? timestampToReadable(account.expireIn) : '');
+		$('#expire-in').val(account !== null ? timedeltaToReadable(account.expireIn) : '');
 	}
 
 	var showInbox = function() {
@@ -111,10 +111,11 @@ var tethbox = (function() {
 		var newTbody = $('<tbody>');
 		for (var i in messages) {
 			var message = messages[i];
+			var message_sender = message.sender_name || message.sender_address;
 			$('<tr>').addClass(message.read ? '' : 'unread')
-				.append($('<td>').text(message.sender))
+				.append($('<td>').text(message_sender))
 				.append($('<td>').text(message.subject))
-				.append($('<td>').text(new Date(message.date * 1000).toLocaleString()))
+				.append($('<td>').text(timestampToLocaleString(message.date)))
 				.click({'key': message.key}, function(event) {
 					openMessage(event.data.key);
 					$(this).removeClass('unread');
@@ -149,7 +150,15 @@ var tethbox = (function() {
 	}
 
 	var displayMessage = function(message) {
-		$('#message-modal .modal-title').text(message.subject);
+		$('#message-modal .modal-header .subject').text(message.subject);
+		if (message.sender_name) {
+			$('#message-modal .modal-header .sender span').text(message.sender_name);
+			$('#message-modal .modal-header .sender small').text('<'+message.sender_address+'>');
+		} else {
+			$('#message-modal .modal-header .sender span').text(message.sender_address);
+			$('#message-modal .modal-header .sender small').text('');
+		}
+		$('#message-modal .modal-header .date span').text(timestampToLocaleString(message.date));
 		$('#message-modal .modal-body').html(message.html);
 		$('#message-modal').modal('show');
 	}
@@ -188,11 +197,15 @@ var tethbox = (function() {
 		}
 	}
 
-	var timestampToReadable = function(timestamp) {
-		var date = new Date(timestamp * 1000);
+	var timedeltaToReadable = function(timedelta) {
+		var date = new Date(timedelta * 1000);
 		var minutes = '' + date.getMinutes();
 		var seconds = (date.getSeconds() < 10 ? '0' : '') + date.getSeconds();
 		return minutes + ':' + seconds;
+	}
+
+	var timestampToLocaleString = function(timestamp) {
+		return new Date(timestamp * 1000).toLocaleString()
 	}
 
 	return {

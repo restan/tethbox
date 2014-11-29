@@ -22,3 +22,12 @@
 #inbox tbody tr.unread {
 	font-weight: bold;
 }
+
+#message-modal .modal-subtitle {
+	font-style: italic;
+}
+
+#message-modal .modal-subtitle strong {
+	display: inline-block;
+	width: 40px;
+}

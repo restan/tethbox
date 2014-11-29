@@ -72,7 +72,8 @@ class Account(ndb.Model):
 
 
 class Message(ndb.Model):
-    sender = ndb.StringProperty(required=True)
+    sender_name = ndb.StringProperty(required=False)
+    sender_address = ndb.StringProperty(required=True)
     to = ndb.StringProperty(required=True)
     reply_to = ndb.StringProperty(required=False)
     cc = ndb.StringProperty(required=False)

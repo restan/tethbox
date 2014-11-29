@@ -41,7 +41,8 @@ def account_to_dict(account):
 def message_to_dict(message, html=False):
     result = {
         'key': message.key.urlsafe(),
-        'sender': message.sender,
+        'sender_name': message.sender_name,
+        'sender_address': message.sender_address,
         'date': to_timestamp(message.date),
         'subject': message.subject,
         'read': message.read
