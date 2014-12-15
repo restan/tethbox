@@ -2,8 +2,9 @@ from datetime import datetime, timedelta
 import logging
 import string
 
+import cloudstorage as gcs
 from google.appengine.api import app_identity
-from google.appengine.ext import ndb
+from google.appengine.ext import ndb, blobstore
 
 
 BASE62_DIGITS = string.digits + string.letters
@@ -70,6 +71,14 @@ class Account(ndb.Model):
         self.put()
         logging.info("Account validity extended: %s" % self.email)
 
+    def clear(self):
+        logging.info("Clearing account: %s" % self.email)
+        messages_to_delete = Message.query(ancestor=self.key).fetch()
+        for message in messages_to_delete:
+            message.delete()
+        self.cleared = True
+        self.put()
+
 
 class Message(ndb.Model):
     sender_name = ndb.StringProperty(required=False)
@@ -83,3 +92,26 @@ class Message(ndb.Model):
     body = ndb.TextProperty()
     html = ndb.TextProperty()
     read = ndb.BooleanProperty(required=True, default=False)
+
+    def delete(self):
+        attachments_to_delete = Attachment.query(ancestor=self.key).fetch()
+        for attachment in attachments_to_delete:
+            attachment.delete()
+        self.key.delete()
+
+
+class Attachment(ndb.Model):
+    filename = ndb.StringProperty(required=True)
+    size = ndb.IntegerProperty(required=True)
+    gcs_filename = ndb.StringProperty(required=True)
+
+    @property
+    def blobkey(self):
+        return blobstore.BlobKey(blobstore.create_gs_key('/gs%s' % self.gcs_filename))
+
+    def delete(self):
+        try:
+            gcs.delete(self.gcs_filename)
+        except gcs.NotFoundError, e:
+            logging.warning('GCS file not found: %s' % self.gcs_filename)
+        self.key.delete()

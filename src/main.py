@@ -1,13 +1,14 @@
-from datetime import datetime, timedelta
+from datetime import datetime
 import json
 import logging
 
 from google.appengine.ext import ndb
+from google.appengine.ext.webapp import blobstore_handlers
 import os
 import webapp2
 from webapp2_extras import sessions
 
-from tethbox.model import Account, Message
+from tethbox.model import Account, Message, Attachment
 
 
 EPOCH = datetime(1970, 1, 1)
@@ -38,7 +39,7 @@ def account_to_dict(account):
     }
 
 
-def message_to_dict(message, html=False):
+def message_to_dict(message, short=True):
     result = {
         'key': message.key.urlsafe(),
         'sender_name': message.sender_name,
@@ -47,17 +48,27 @@ def message_to_dict(message, html=False):
         'subject': message.subject,
         'read': message.read
     }
-    if html:
+    if not short:
         result['html'] = message.html
+        attachments = Attachment.query(ancestor=message.key)
+        result['attachments'] = [attachment_to_dict(attachment) for attachment in attachments]
     return result
 
 
-class BaseHandler(webapp2.RequestHandler):
+def attachment_to_dict(attachment):
+    return {
+        'key': attachment.key.urlsafe(),
+        'filename': attachment.filename,
+        'size': attachment.size
+    }
+
+
+class SessionAwareHandlerMixin(object):
 
     def dispatch(self):
         self.session_store = sessions.get_store(request=self.request)
         try:
-            webapp2.RequestHandler.dispatch(self)
+            super(SessionAwareHandlerMixin, self).dispatch()
         finally:
             self.session_store.save_sessions(self.response)
 
@@ -66,7 +77,7 @@ class BaseHandler(webapp2.RequestHandler):
         return self.session_store.get_session(backend='memcache')
 
 
-class JsonHandler(BaseHandler):
+class JsonHandler(SessionAwareHandlerMixin, webapp2.RequestHandler):
 
     def get(self, *args, **kwargs):
         response = self.get_json(*args, **kwargs)
@@ -126,7 +137,7 @@ class MessageHandler(JsonHandler):
                     message.read = True
                     message.put()
                 return {
-                    'message': message_to_dict(message, html=True)
+                    'message': message_to_dict(message, short=False)
                 }
 
 
@@ -155,6 +166,24 @@ class ResetTimerHandler(JsonHandler):
             self.abort(403)
 
 
+class AttachmentHandler(SessionAwareHandlerMixin, blobstore_handlers.BlobstoreDownloadHandler):
+
+    def get(self, key):
+        try:
+            attachment_key = ndb.Key(urlsafe=key)
+            attachment = attachment_key.get()
+        except Exception as e:
+            logging.exception(e)
+            self.abort(404)
+        else:
+            account = get_account(self.session)
+            attachment_account_key = attachment_key.parent().parent()
+            if not account or account.key != attachment_account_key:
+                self.abort(403)
+            else:
+                self.send_blob(attachment.blobkey, save_as=attachment.filename)
+
+
 config = {
     'webapp2_extras.sessions': {
         'secret_key': os.environ['SESSION_SECRET_KEY'],
@@ -167,4 +196,5 @@ app = webapp2.WSGIApplication([
     webapp2.Route('/message/<key>', MessageHandler),
     webapp2.Route('/newAccount', NewAccountHandler),
     webapp2.Route('/resetTimer', ResetTimerHandler),
+    webapp2.Route('/attachment/<key>', AttachmentHandler),
 ], config=config, debug=True)

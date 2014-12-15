@@ -31,3 +31,13 @@
 	display: inline-block;
 	width: 40px;
 }
+
+#message-modal .attachments {
+	text-align: left;
+	list-style: none;
+	padding-left: 0;
+}
+
+#message-modal .attachments a {
+	margin-left: 7px;
+}

@@ -20,6 +20,10 @@ var tethbox = (function() {
 
 			getMessage: function(key) {
 				return $.getJSON('/message/' + key);
+			},
+
+			getAttachmentUrl: function(key) {
+				return '/attachment/' + key;
 			}
 		};
 	})();
@@ -95,7 +99,7 @@ var tethbox = (function() {
 			if (accountChanged) {
 				account = data.account;
 				updateAccountValues();
-			} else {
+			} else if (account) {
 				account.expireIn = data.account.expireIn;
 			}
 			messages = data.messages;
@@ -112,13 +116,13 @@ var tethbox = (function() {
 		for (var i in messages) {
 			var message = messages[i];
 			var message_sender = message.sender_name || message.sender_address;
-			$('<tr>').addClass(message.read ? '' : 'unread')
+			$('<tr>').addClass(message.read ? 'active' : '')
 				.append($('<td>').text(message_sender))
 				.append($('<td>').text(message.subject))
 				.append($('<td>').text(timestampToLocaleString(message.date)))
 				.click({'key': message.key}, function(event) {
 					openMessage(event.data.key);
-					$(this).removeClass('unread');
+					$(this).addClass('active');
 				})
 				.appendTo(newTbody);
 		}
@@ -160,7 +164,20 @@ var tethbox = (function() {
 		}
 		$('#message-modal .modal-header .date span').text(timestampToLocaleString(message.date));
 		$('#message-modal .modal-body').html(message.html);
+		updateAttachmentList(message.attachments);
 		$('#message-modal').modal('show');
+	}
+
+	var updateAttachmentList = function(attachments) {
+		var newAttachmentList = $('<ul class="attachments">');
+		for (var i in attachments) {
+			var attachment = attachments[i];
+			$('<li>')
+				.append($('<span class="glyphicon glyphicon-paperclip" aria-hidden="true">'))
+				.append($('<a>').attr({'href': api.getAttachmentUrl(attachment.key)}).text(attachment.filename))
+				.appendTo(newAttachmentList);
+		}
+		$('#message-modal .attachments').replaceWith(newAttachmentList);
 	}
 
 	var accountExpired = function() {
