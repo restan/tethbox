@@ -2,8 +2,7 @@ from datetime import datetime
 
 from google.appengine.ext import ndb
 import webapp2
-
-from tethbox.model import Account
+from model import Account
 
 
 class ClearAccountsHandler(webapp2.RequestHandler):

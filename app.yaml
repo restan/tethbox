@@ -1,4 +1,4 @@
-application: application-id
+application: tethbox-0s
 version: 1
 runtime: python27
 api_version: 1
@@ -18,11 +18,13 @@ handlers:
   static_files: static/index.html
   upload: static/index.html
 
-- url: /stylesheets
-  static_dir: static/stylesheets
+- url: /style.css
+  static_files: static/style.css
+  upload: static/style.css
 
-- url: /js
-  static_dir: static/js
+- url: /application.js
+  static_files: static/application.js
+  upload: static/application.js
 
 - url: /_ah/mail/.+
   script: email_handler.app
@@ -33,7 +35,7 @@ handlers:
   login: admin
 
 - url: /.*
-  script: main.app
+  script: api.app
 
 env_variables:
   SESSION_SECRET_KEY: 'session-secret-key'

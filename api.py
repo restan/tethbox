@@ -7,8 +7,7 @@ from google.appengine.ext.webapp import blobstore_handlers
 import os
 import webapp2
 from webapp2_extras import sessions
-
-from tethbox.model import Account, Message, Attachment
+from model import Account, Message, Attachment
 
 
 EPOCH = datetime(1970, 1, 1)

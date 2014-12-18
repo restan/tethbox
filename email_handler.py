@@ -10,7 +10,7 @@ from lxml.html.clean import clean_html
 from google.appengine.api import app_identity
 from google.appengine.ext.webapp.mail_handlers import InboundMailHandler
 import webapp2
-from tethbox.model import Account, Message, Attachment
+from model import Account, Message, Attachment
 
 
 lxml.html.defs.safe_attrs |= {'style'}
