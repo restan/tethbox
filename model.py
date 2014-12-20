@@ -9,8 +9,13 @@ from google.appengine.ext import ndb, blobstore
 
 BASE62_DIGITS = string.digits + string.letters
 BASE62_SIZE = len(BASE62_DIGITS)
+EPOCH = datetime(1970, 1, 1)
 EMAIL_ADDRESS_PATTERN = '%s@%s.appspotmail.com'
 ACCOUNT_MAX_SECONDS = 600
+
+
+def to_timestamp(datetime_):
+    return int((datetime_ - EPOCH).total_seconds())
 
 
 def base62_encode(number):
@@ -47,6 +52,10 @@ class Account(ndb.Model):
     def is_valid(self):
         return self.valid_until > datetime.now()
 
+    @property
+    def messages(self):
+        return Message.query(ancestor=self.key).order(Message.date)
+
     @classmethod
     def get_by_email(cls, email):
         return cls.query(Account.email == email).get()
@@ -79,6 +88,12 @@ class Account(ndb.Model):
         self.cleared = True
         self.put()
 
+    def api_repr(self):
+        return {
+            'email': self.email,
+            'expireIn': self.expire_in
+        }
+
 
 class Message(ndb.Model):
     sender_name = ndb.StringProperty(required=False)
@@ -93,11 +108,29 @@ class Message(ndb.Model):
     html = ndb.TextProperty()
     read = ndb.BooleanProperty(required=True, default=False)
 
+    @property
+    def attachments(self):
+        return Attachment.query(ancestor=self.key)
+
     def delete(self):
         attachments_to_delete = Attachment.query(ancestor=self.key).fetch()
         for attachment in attachments_to_delete:
             attachment.delete()
         self.key.delete()
+
+    def api_repr(self, full=False):
+        result = {
+            'key': self.key.urlsafe(),
+            'sender_name': self.sender_name,
+            'sender_address': self.sender_address,
+            'date': to_timestamp(self.date),
+            'subject': self.subject,
+            'read': self.read
+        }
+        if full:
+            result['html'] = self.html
+            result['attachments'] = [attachment.api_repr() for attachment in self.attachments]
+        return result
 
 
 class Attachment(ndb.Model):
@@ -112,6 +145,13 @@ class Attachment(ndb.Model):
     def delete(self):
         try:
             gcs.delete(self.gcs_filename)
-        except gcs.NotFoundError, e:
+        except gcs.NotFoundError:
             logging.warning('GCS file not found: %s' % self.gcs_filename)
         self.key.delete()
+
+    def api_repr(self):
+        return {
+            'key': self.key.urlsafe(),
+            'filename': self.filename,
+            'size': self.size
+        }

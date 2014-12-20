@@ -7,59 +7,7 @@ from google.appengine.ext.webapp import blobstore_handlers
 import os
 import webapp2
 from webapp2_extras import sessions
-from model import Account, Message, Attachment
-
-
-EPOCH = datetime(1970, 1, 1)
-
-
-def to_timestamp(datetime_):
-    return int((datetime_ - EPOCH).total_seconds())
-
-
-def get_account(session):
-    account_id = session.get('account_id')
-    if account_id:
-        account = Account.get_by_id(account_id)
-        if account and account.is_valid:
-            return account
-
-
-def create_account(session):
-    account = Account.create()
-    session['account_id'] = account.key.id()
-    return account
-
-
-def account_to_dict(account):
-    return {
-        'email': account.email,
-        'expireIn': account.expire_in
-    }
-
-
-def message_to_dict(message, short=True):
-    result = {
-        'key': message.key.urlsafe(),
-        'sender_name': message.sender_name,
-        'sender_address': message.sender_address,
-        'date': to_timestamp(message.date),
-        'subject': message.subject,
-        'read': message.read
-    }
-    if not short:
-        result['html'] = message.html
-        attachments = Attachment.query(ancestor=message.key)
-        result['attachments'] = [attachment_to_dict(attachment) for attachment in attachments]
-    return result
-
-
-def attachment_to_dict(attachment):
-    return {
-        'key': attachment.key.urlsafe(),
-        'filename': attachment.filename,
-        'size': attachment.size
-    }
+from model import Account
 
 
 class SessionAwareHandlerMixin(object):
@@ -74,6 +22,18 @@ class SessionAwareHandlerMixin(object):
     @webapp2.cached_property
     def session(self):
         return self.session_store.get_session(backend='memcache')
+
+    def get_account(self):
+        account_id = self.session.get('account_id')
+        if account_id:
+            account = Account.get_by_id(account_id)
+            if account and account.is_valid:
+                return account
+
+    def create_account(self):
+        account = Account.create()
+        self.session['account_id'] = account.key.id()
+        return account
 
 
 class JsonHandler(SessionAwareHandlerMixin, webapp2.RequestHandler):
@@ -91,27 +51,24 @@ class JsonHandler(SessionAwareHandlerMixin, webapp2.RequestHandler):
 class InitHandler(JsonHandler):
 
     def get_json(self):
-        account = get_account(self.session)
+        account = self.get_account()
         if account:
             logging.info("Account already exists: %s" % account.email)
         else:
-            account = create_account(self.session)
+            account = self.create_account()
         return {
-            'account': account_to_dict(account)
+            'account': account.api_repr()
         }
 
 
 class InboxHandler(JsonHandler):
 
     def get_json(self):
-        account = get_account(self.session)
+        account = self.get_account()
         if account:
-            messages = Message.query(ancestor=account.key).order(Message.date)
             return {
-                'account': account_to_dict(account),
-                'messages': [
-                    message_to_dict(message) for message in messages
-                ]
+                'account': account.api_repr(),
+                'messages': [message.api_repr() for message in account.messages]
             }
         else:
             self.abort(410)
@@ -127,7 +84,7 @@ class MessageHandler(JsonHandler):
             logging.exception(e)
             self.abort(404)
         else:
-            account = get_account(self.session)
+            account = self.get_account()
             message_account_key = message_key.parent()
             if not account or account.key != message_account_key:
                 self.abort(403)
@@ -136,30 +93,30 @@ class MessageHandler(JsonHandler):
                     message.read = True
                     message.put()
                 return {
-                    'message': message_to_dict(message, short=False)
+                    'message': message.api_repr(full=True)
                 }
 
 
 class NewAccountHandler(JsonHandler):
 
     def get_json(self):
-        account = get_account(self.session)
+        account = self.get_account()
         if account:
             account.close()
-        account = create_account(self.session)
+        account = self.create_account()
         return {
-            'account': account_to_dict(account)
+            'account': account.api_repr()
         }
 
 
 class ResetTimerHandler(JsonHandler):
 
     def get_json(self):
-        account = get_account(self.session)
+        account = self.get_account()
         if account and account.is_valid:
             account.extend_validity()
             return {
-                'account': account_to_dict(account)
+                'account': account.api_repr()
             }
         else:
             self.abort(403)
@@ -175,7 +132,7 @@ class AttachmentHandler(SessionAwareHandlerMixin, blobstore_handlers.BlobstoreDo
             logging.exception(e)
             self.abort(404)
         else:
-            account = get_account(self.session)
+            account = self.get_account()
             attachment_account_key = attachment_key.parent().parent()
             if not account or account.key != attachment_account_key:
                 self.abort(403)
