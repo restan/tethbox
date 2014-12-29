@@ -14,8 +14,8 @@ var tethbox = (function() {
 				return $.getJSON('/newAccount');
 			},
 
-			resetAccountTimer: function() {
-				return $.getJSON('/resetTimer');
+			extendTime: function() {
+				return $.getJSON('/extendTime');
 			},
 
 			getMessage: function(key) {
@@ -34,7 +34,7 @@ var tethbox = (function() {
 
 	var initButtons = function() {
 		initCopyButton();
-		initResetTimerButton();
+		initExtendTimeButton();
 		initNewAccountButton();
 	}
 
@@ -45,9 +45,9 @@ var tethbox = (function() {
 		});
 	}
 
-	var initResetTimerButton = function() {
-		$('#reset-timer-button').click(function() {
-			resetAccountTimer();
+	var initExtendTimeButton = function() {
+		$('#extend-time-button').click(function() {
+			extendTime();
 			this.blur();
 		});
 	}
@@ -140,8 +140,8 @@ var tethbox = (function() {
 		});
 	}
 
-	var resetAccountTimer = function() {
-		api.resetAccountTimer().done(function(data) {
+	var extendTime = function() {
+		api.extendTime().done(function(data) {
 			account = data.account;
 			updateAccountValues();
 		});

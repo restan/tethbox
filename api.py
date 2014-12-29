@@ -109,7 +109,7 @@ class NewAccountHandler(JsonHandler):
         }
 
 
-class ResetTimerHandler(JsonHandler):
+class ExtendTimeHandler(JsonHandler):
 
     def get_json(self):
         account = self.get_account()
@@ -151,6 +151,6 @@ app = webapp2.WSGIApplication([
     webapp2.Route('/inbox', InboxHandler),
     webapp2.Route('/message/<key>', MessageHandler),
     webapp2.Route('/newAccount', NewAccountHandler),
-    webapp2.Route('/resetTimer', ResetTimerHandler),
+    webapp2.Route('/extendTime', ExtendTimeHandler),
     webapp2.Route('/attachment/<key>', AttachmentHandler),
 ], config=config, debug=True)
