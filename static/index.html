@@ -14,25 +14,27 @@
 					Disposable temporary email address.
 				</p>
 				<form id="account-management" class="form-horizontal col-md-6 col-md-offset-3 account-data" role="form">
-					<div class="form-group">
-						<label for="email" class="col-sm-4 control-label">Your email address</label>
-						<div class="col-sm-8">
-							<div class="input-group">
-								<input id="email" class="form-control" type="text" value="" readonly/>
-								<span class="input-group-btn">
-									<button class="btn btn-primary copy-button" type="button" data-clipboard-target="email">Copy</button>
-								</span>
+					<div id="account-details" class="hidden">
+						<div class="form-group">
+							<label for="email" class="col-sm-4 control-label">Your email address</label>
+							<div class="col-sm-8">
+								<div class="input-group">
+									<input id="email" class="form-control" type="text" value="" readonly/>
+									<span class="input-group-btn">
+										<button class="btn btn-primary copy-button" type="button" data-clipboard-target="email">Copy</button>
+									</span>
+								</div>
 							</div>
 						</div>
-					</div>
-					<div class="form-group">
-						<label for="expire-in" class="col-sm-4 control-label">Expire in</label>
-						<div class="col-sm-8">
-							<div class="input-group">
-								<input id="expire-in" class="form-control" type="text" value="" readonly/>
-								<span class="input-group-btn">
-									<button id="extend-time-button" class="btn btn-primary" type="button">Extend</button>
-								</span>
+						<div class="form-group">
+							<label for="expire-in" class="col-sm-4 control-label">Expire in</label>
+							<div class="col-sm-8">
+								<div class="input-group">
+									<input id="expire-in" class="form-control" type="text" value="" readonly/>
+									<span class="input-group-btn">
+										<button id="extend-time-button" class="btn btn-primary" type="button">Extend</button>
+									</span>
+								</div>
 							</div>
 						</div>
 					</div>

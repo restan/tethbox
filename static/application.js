@@ -71,9 +71,11 @@ var tethbox = (function() {
 		updateEmailValue();
 		updateTimerValue();
 		if (account) {
+			showAccount();
 			showInbox();
 		} else {
 			hideInbox();
+			hideAccount();
 		}
 	}
 
@@ -83,6 +85,14 @@ var tethbox = (function() {
 
 	var updateTimerValue = function() {
 		$('#expire-in').val(account !== null ? timedeltaToReadable(account.expireIn) : '');
+	}
+
+	var showAccount = function() {
+		$('#account-details').removeClass('hidden');
+	}
+
+	var hideAccount = function() {
+		$('#account-details').addClass('hidden');
 	}
 
 	var showInbox = function() {
