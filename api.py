@@ -3,11 +3,20 @@ import json
 import logging
 
 from google.appengine.ext import ndb
-from google.appengine.ext.webapp import blobstore_handlers
+from google.appengine.ext.webapp.blobstore_handlers import BlobstoreDownloadHandler
 import os
-import webapp2
+from webapp2 import RequestHandler, Route, WSGIApplication, cached_property
 from webapp2_extras import sessions
 from model import Account
+
+
+def json_response(func):
+    def wrapper(self, *args, **kwargs):
+        response = func(self, *args, **kwargs)
+        self.response.content_type = 'application/json'
+        self.response.charset = 'utf8'
+        self.response.out.write(json.dumps(response))
+    return wrapper
 
 
 class SessionAwareHandlerMixin(object):
@@ -19,7 +28,7 @@ class SessionAwareHandlerMixin(object):
         finally:
             self.session_store.save_sessions(self.response)
 
-    @webapp2.cached_property
+    @cached_property
     def session(self):
         return self.session_store.get_session(backend='memcache')
 
@@ -36,21 +45,10 @@ class SessionAwareHandlerMixin(object):
         return account
 
 
-class JsonHandler(SessionAwareHandlerMixin, webapp2.RequestHandler):
+class InitHandler(SessionAwareHandlerMixin, RequestHandler):
 
-    def get(self, *args, **kwargs):
-        response = self.get_json(*args, **kwargs)
-        self.response.content_type = 'application/json'
-        self.response.charset = 'utf8'
-        self.response.out.write(json.dumps(response))
-
-    def get_json(self, *args, **kwargs):
-        raise NotImplementedError()
-
-
-class InitHandler(JsonHandler):
-
-    def get_json(self):
+    @json_response
+    def get(self):
         account = self.get_account()
         if account:
             logging.info("Account already exists: %s" % account.email)
@@ -61,9 +59,10 @@ class InitHandler(JsonHandler):
         }
 
 
-class InboxHandler(JsonHandler):
+class InboxHandler(SessionAwareHandlerMixin, RequestHandler):
 
-    def get_json(self):
+    @json_response
+    def get(self):
         account = self.get_account()
         if account:
             return {
@@ -74,9 +73,37 @@ class InboxHandler(JsonHandler):
             self.abort(410)
 
 
-class MessageHandler(JsonHandler):
+class ExtendTimeHandler(SessionAwareHandlerMixin, RequestHandler):
 
-    def get_json(self, key):
+    @json_response
+    def get(self):
+        account = self.get_account()
+        if account and account.is_valid:
+            account.extend_validity()
+            return {
+                'account': account.api_repr()
+            }
+        else:
+            self.abort(403)
+
+
+class NewAccountHandler(SessionAwareHandlerMixin, RequestHandler):
+
+    @json_response
+    def get(self):
+        account = self.get_account()
+        if account:
+            account.close()
+        account = self.create_account()
+        return {
+            'account': account.api_repr()
+        }
+
+
+class MessageHandler(SessionAwareHandlerMixin, RequestHandler):
+
+    @json_response
+    def get(self, key):
         try:
             message_key = ndb.Key(urlsafe=key)
             message = message_key.get()
@@ -97,32 +124,7 @@ class MessageHandler(JsonHandler):
                 }
 
 
-class NewAccountHandler(JsonHandler):
-
-    def get_json(self):
-        account = self.get_account()
-        if account:
-            account.close()
-        account = self.create_account()
-        return {
-            'account': account.api_repr()
-        }
-
-
-class ExtendTimeHandler(JsonHandler):
-
-    def get_json(self):
-        account = self.get_account()
-        if account and account.is_valid:
-            account.extend_validity()
-            return {
-                'account': account.api_repr()
-            }
-        else:
-            self.abort(403)
-
-
-class AttachmentHandler(SessionAwareHandlerMixin, blobstore_handlers.BlobstoreDownloadHandler):
+class AttachmentHandler(SessionAwareHandlerMixin, BlobstoreDownloadHandler):
 
     def get(self, key):
         try:
@@ -146,11 +148,11 @@ config = {
     },
 }
 
-app = webapp2.WSGIApplication([
-    webapp2.Route('/init', InitHandler),
-    webapp2.Route('/inbox', InboxHandler),
-    webapp2.Route('/message/<key>', MessageHandler),
-    webapp2.Route('/newAccount', NewAccountHandler),
-    webapp2.Route('/extendTime', ExtendTimeHandler),
-    webapp2.Route('/attachment/<key>', AttachmentHandler),
+app = WSGIApplication([
+    Route('/init', InitHandler),
+    Route('/inbox', InboxHandler),
+    Route('/extendTime', ExtendTimeHandler),
+    Route('/newAccount', NewAccountHandler),
+    Route('/message/<key>', MessageHandler),
+    Route('/attachment/<key>', AttachmentHandler),
 ], config=config, debug=True)
