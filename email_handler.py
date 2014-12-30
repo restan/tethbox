@@ -15,15 +15,16 @@ from model import Account, Message, Attachment
 
 lxml.html.defs.safe_attrs |= {'style'}
 
-EXTENDED_SENDER_REGEX = re.compile(r'(.+)<(.+)>')
+ADDRESS_HEADER_REGEX = re.compile(r'(.*)<(.+)>')
 
 
-def parse_sender(sender):
-    sender_match = EXTENDED_SENDER_REGEX.match(sender)
-    if sender_match:
-        return sender_match.group(1), sender_match.group(2)
+def parse_address_header(address_header):
+    address_match = ADDRESS_HEADER_REGEX.match(address_header)
+    if address_match:
+        name, address = map(lambda s: s.strip(' "'), address_match.groups())
+        return name or None, address
     else:
-        return None, sender
+        return None, address_header.strip()
 
 
 def create_gcs_attachment_filename(message):
@@ -35,15 +36,17 @@ def create_gcs_attachment_filename(message):
 
 
 def store_message(mail_message):
-    account = Account.get_by_email(mail_message.to)
+    receiver_name, receiver_address = parse_address_header(mail_message.to)
+    account = Account.get_by_email(receiver_address)
     if not account or account.valid_until < datetime.now():
         return
-    sender_name, sender_address = parse_sender(mail_message.sender)
+    sender_name, sender_address = parse_address_header(mail_message.sender)
     message = Message(
         parent=account.key,
         sender_name=sender_name,
         sender_address=sender_address,
-        to=mail_message.to,
+        receiver_name=receiver_name,
+        receiver_address=receiver_address,
         reply_to=getattr(mail_message, 'reply_to', None),
         cc=getattr(mail_message, 'cc', None),
         bcc=getattr(mail_message, 'bcc', None),
