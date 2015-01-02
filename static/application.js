@@ -179,15 +179,21 @@ var tethbox = (function() {
 	}
 
 	var updateAttachmentList = function(attachments) {
-		var newAttachmentList = $('<ul class="attachments">');
-		for (var i in attachments) {
-			var attachment = attachments[i];
-			$('<li>')
-				.append($('<span class="glyphicon glyphicon-paperclip" aria-hidden="true">'))
-				.append($('<a>').attr({'href': api.getAttachmentUrl(attachment.key)}).text(attachment.filename))
-				.appendTo(newAttachmentList);
+		if (attachments.length == 0) {
+			$('#message-modal .modal-footer').addClass('hidden');
+		} else {
+			var newAttachmentList = $('<ul class="attachments">');
+			for (var i in attachments) {
+				var attachment = attachments[i];
+				$('<li>')
+					.append($('<span class="glyphicon glyphicon-paperclip" aria-hidden="true">'))
+					.append($('<a>').attr({'href': api.getAttachmentUrl(attachment.key)}).text(attachment.filename))
+					.append(' (' + readableFileSize(attachment.size) + ')')
+					.appendTo(newAttachmentList);
+			}
+			$('#message-modal .attachments').replaceWith(newAttachmentList);
+			$('#message-modal .modal-footer').removeClass('hidden');
 		}
-		$('#message-modal .attachments').replaceWith(newAttachmentList);
 	}
 
 	var accountExpired = function() {
@@ -233,6 +239,21 @@ var tethbox = (function() {
 
 	var timestampToLocaleString = function(timestamp) {
 		return new Date(timestamp * 1000).toLocaleString()
+	}
+
+	var readableFileSize = function(bytes) {
+		var number = bytes;
+		var units = ['kB', 'MB', 'GB'];
+		var unit = 'B'
+		for (var i in units) {
+			if (number < 1000) {
+				break;
+			} else {
+				number /= 1000;
+				unit = units[i];
+			}
+		}
+		return number.toFixed(1).replace('.0', '') + ' ' + unit;
 	}
 
 	return {
