@@ -124,7 +124,7 @@ class MessageHandler(SessionAwareHandlerMixin, RequestHandler):
                 }
 
 
-class AttachmentHandler(SessionAwareHandlerMixin, BlobstoreDownloadHandler):
+class AttachmentDownloadHandler(SessionAwareHandlerMixin, BlobstoreDownloadHandler):
 
     def get(self, key):
         try:
@@ -154,5 +154,5 @@ app = WSGIApplication([
     Route('/extendTime', ExtendTimeHandler),
     Route('/newAccount', NewAccountHandler),
     Route('/message/<key>', MessageHandler),
-    Route('/attachment/<key>', AttachmentHandler),
+    Route('/attachment/<key>', AttachmentDownloadHandler),
 ], config=config, debug=True)
