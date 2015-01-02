@@ -178,6 +178,10 @@ var tethbox = (function() {
 		$('#message-modal').modal('show');
 	}
 
+	var hideMessage = function() {
+		$('#message-modal').modal('hide');
+	}
+
 	var updateAttachmentList = function(attachments) {
 		if (attachments.length == 0) {
 			$('#message-modal .modal-footer').addClass('hidden');
@@ -198,6 +202,7 @@ var tethbox = (function() {
 
 	var accountExpired = function() {
 		resetData();
+		hideMessage();
 	}
 
 	var resetData = function() {
