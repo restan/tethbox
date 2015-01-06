@@ -1,4 +1,5 @@
 from datetime import datetime
+from email.utils import parseaddr
 import logging
 import mimetypes
 import uuid
@@ -58,11 +59,11 @@ class IncomingMailHandler(InboundMailHandler):
         self._store_message(mail_message)
 
     def _store_message(self, mail_message):
-        receiver_name, receiver_address = parse_address_header(mail_message.to)
+        receiver_name, receiver_address = parseaddr(mail_message.to)
         account = Account.get_by_email(receiver_address)
         if not account or account.valid_until < datetime.now():
             return
-        sender_name, sender_address = parse_address_header(mail_message.sender)
+        sender_name, sender_address = parseaddr(mail_message.sender)
         db_message = Message(
             parent=account.key,
             sender_name=sender_name,

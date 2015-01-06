@@ -1,6 +1,8 @@
-from datetime import datetime
+from email.utils import formataddr
 import json
 import logging
+import re
+from google.appengine.api import mail
 
 from google.appengine.ext import ndb
 from google.appengine.ext.webapp.blobstore_handlers import BlobstoreDownloadHandler
@@ -12,7 +14,12 @@ from model import Account
 
 def json_response(func):
     def wrapper(self, *args, **kwargs):
-        response = func(self, *args, **kwargs)
+        result = func(self, *args, **kwargs)
+        if isinstance(result, tuple):
+            code, response = result
+        else:
+            code, response = 200, result
+        self.response.status_int = code
         self.response.content_type = 'application/json'
         self.response.charset = 'utf8'
         self.response.out.write(json.dumps(response))
@@ -142,6 +149,43 @@ class AttachmentDownloadHandler(SessionAwareHandlerMixin, BlobstoreDownloadHandl
                 self.send_blob(attachment.blobkey, save_as=attachment.filename)
 
 
+def is_email_valid(email_address):
+    return bool(re.match(r'[^@]+@[^@]+\.[^@]+$', email_address))
+
+
+class ForwardMessageHandler(SessionAwareHandlerMixin, RequestHandler):
+
+    @json_response
+    def post(self, key):
+        email_address = self.request.get('address').strip()
+        if not is_email_valid(email_address):
+            return 400, {
+                'error': 'Email address is not valid.'
+            }
+        try:
+            message_key = ndb.Key(urlsafe=key)
+            message = message_key.get()
+        except Exception as e:
+            logging.exception(e)
+            self.abort(404)
+        else:
+            account = self.get_account()
+            message_account_key = message_key.parent()
+            if not account or account.key != message_account_key:
+                self.abort(403)
+            else:
+                logging.info('Forwarding message from %s to %s' % (account.email, email_address))
+                email_message = mail.EmailMessage(
+                    sender=formataddr((message.sender_name, account.email)),
+                    to=formataddr((message.receiver_name, email_address)),
+                    reply_to=message.reply_to or message.sender_address,
+                    subject=message.subject,
+                    body=message.body,
+                    html=message.html,
+                )
+                email_message.send()
+
+
 config = {
     'webapp2_extras.sessions': {
         'secret_key': os.environ['SESSION_SECRET_KEY'],
@@ -154,5 +198,6 @@ app = WSGIApplication([
     Route('/extendTime', ExtendTimeHandler),
     Route('/newAccount', NewAccountHandler),
     Route('/message/<key>', MessageHandler),
+    Route('/message/<key>/forward', ForwardMessageHandler),
     Route('/attachment/<key>', AttachmentDownloadHandler),
 ], config=config, debug=True)
