@@ -191,9 +191,7 @@ var tethbox = (function() {
 
 			function initModal() {
 				$('#message-modal').on('hidden.bs.modal', function (e) {
-					console.log(message);
 					setMessage(null);
-					console.log(message);
 				});
 			}
 
@@ -281,7 +279,10 @@ var tethbox = (function() {
 
 			function initForwardButton() {
 				$('#forward-button').click(function() {
-					forwardMessage(message);
+					var button = $(this).addClass('disabled').button('forwarding');
+					forwardMessage(message).always(function() {
+						button.button('reset').removeClass('disabled');
+					});
 				});
 			}
 
@@ -315,11 +316,16 @@ var tethbox = (function() {
 		function forwardMessage(message) {
 			hideAlert();
 			var address = $('#forward-address').val();
-			api.forwardMessage(message.key, address).done(function(data) {
-				showAlert('success', 'Email forwarded successfully.');
+			return api.forwardMessage(message.key, address).done(function(data) {
+				showAlert('success', 'Email forwarded successfully to <strong>' + address + '</strong>.');
+				$('#forward-address').val('');
+				checkFrowardEmailAddressValidity();
 			}).fail(function(data) {
 				if (data.status == 400 && data.responseJSON && data.responseJSON.error) {
 					showAlert('danger', data.responseJSON.error);
+				} else {
+					showAlert('danger', 'Cannot forward your message at this time.');
+					console.log(data);
 				}
 			});
 		}
@@ -328,7 +334,7 @@ var tethbox = (function() {
 			var alertClass = 'alert-' + type;
 			$('<div class="alert" role="alert">')
 				.addClass(alertClass)
-				.text(text)
+				.html(text)
 				.appendTo('#forward-modal .modal-body');
 		}
 
