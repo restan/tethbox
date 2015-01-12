@@ -1,193 +1,239 @@
 var tethbox = (function() {
 
-	var api = (function() {
+	var api = {
+		init: function() {
+			return $.getJSON('/init');
+		},
+
+		getInbox: function() {
+			return $.getJSON('/inbox');
+		},
+
+		createNewAccount: function() {
+			return $.getJSON('/newAccount');
+		},
+
+		extendTime: function() {
+			return $.getJSON('/extendTime');
+		},
+
+		getMessage: function(key) {
+			return $.getJSON('/message/' + key);
+		},
+
+		getAttachmentUrl: function(key) {
+			return '/attachment/' + key;
+		},
+
+		forwardMessage: function(key, address) {
+			return $.post('/message/' + key + '/forward', {'address': address});
+		}
+	};
+
+	var accountManager = function() {
+
+		var localTimer = function() {
+			var timer = null;
+
+			function start() {
+				timer = setTimeout(function(){
+					start();
+					account = accountManager.getAccount();
+					if (account && account.expireIn > 0) {
+						account.expireIn--;
+						bindAccountValues();
+					}
+					var now = new Date();
+					var checkInboxInterval = account && account.expireIn > 0 ? 10 : 1;
+					if (now.getSeconds() % checkInboxInterval == 0) {
+						checkInbox();
+					}
+				}, 1000);
+			}
+
+			function stop() {
+				if (!isStopped()) {
+					clearTimeout(timer);
+					timer = null;
+				}
+			}
+
+			function isStopped() {
+				return timer === null;
+			}
+
+			return {
+				start: start,
+				stop: stop,
+				isStopped: isStopped
+			}
+		}();
+
+		var account = null;
+
+		function init() {
+			return api.init().done(function(data) {
+				setAccount(data.account);
+				checkInbox().done(function() {
+					localTimer.start();
+				});
+			});
+		}
+
+		function checkInbox() {
+			return api.getInbox().done(function(data) {
+				setAccount(data.account);
+				setInboxMessages(data.messages);
+			}).fail(function(jqxhr, textStatus, error) {
+				if (jqxhr.status == 410) {
+					expireAccount();
+				}
+			});
+		}
+
+		function getAccount() {
+			return account
+		}
+
+		function setAccount(_account) {
+			account = _account;
+			bindAccountValues();
+		}
+
+		function bindAccountValues() {
+			$('#email').val(account ? account.email : '');
+			$('#expire-in').val(account !== null ? readableTimedelta(account.expireIn) : '');
+			if (account) {
+				showAccount();
+			} else {
+				hideAccount();
+			}
+		}
+
+		function setInboxMessages(messages) {
+			var newTbody = $('<tbody>');
+			for (var i in messages) {
+				var message = messages[i];
+				var message_sender = message.sender_name || message.sender_address;
+				$('<tr>').addClass(message.read ? 'active' : '')
+					.append($('<td>').text(message_sender))
+					.append($('<td>').text(message.subject))
+					.append($('<td>').text(timestampToLocaleString(message.date)))
+					.click({'key': message.key}, function(event) {
+						openMessage(event.data.key);
+						$(this).addClass('active');
+					})
+					.appendTo(newTbody);
+			}
+			$('#inbox tbody').replaceWith(newTbody);
+		}
+
+		function openMessage(key) {
+			api.getMessage(key).done(function(data) {
+				messageModal.show(data.message);
+			});
+		}
+
+		function extendTime() {
+			api.extendTime().done(function(data) {
+				setAccount(data.account);
+			});
+		}
+
+		function expireAccount() {
+			localTimer.stop();
+			setAccount(null);
+			setInboxMessages([]);
+			messageModal.close();
+			forwardModal.close();
+		}
+
+		function createNewAccount() {
+			api.createNewAccount().done(function(data) {
+				setAccount(data.account);
+				checkInbox();
+				if (localTimer.isStopped()) {
+					localTimer.start();
+				}
+			});
+		}
+
+		function showAccount() {
+			$('#account-details').removeClass('hidden');
+			$('#inbox').parent().removeClass('hidden');
+		}
+
+		function hideAccount() {
+			$('#inbox').parent().addClass('hidden');
+			$('#account-details').addClass('hidden');
+		}
+
 		return {
-			init: function() {
-				return $.getJSON('/init');
-			},
-
-			getInbox: function() {
-				return $.getJSON('/inbox');
-			},
-
-			createNewAccount: function() {
-				return $.getJSON('/newAccount');
-			},
-
-			extendTime: function() {
-				return $.getJSON('/extendTime');
-			},
-
-			getMessage: function(key) {
-				return $.getJSON('/message/' + key);
-			},
-
-			getAttachmentUrl: function(key) {
-				return '/attachment/' + key;
-			},
-
-			forwardMessage: function(key, address) {
-				return $.post('/message/' + key + '/forward', {'address': address});
-			}
+			init: init,
+			extendTime: extendTime,
+			createNewAccount: createNewAccount,
+			getAccount: getAccount,
+			setAccount: setAccount
 		};
-	})();
+	}();
 
-	var account = null;
-	var localTimer = null;
+	var messageModal = function() {
+		var message = null;
 
-	var initElements = function() {
-		initCopyButton();
-		initExtendTimeButton();
-		initNewAccountButton();
-	}
-
-	var initCopyButton = function() {
-		var client = new ZeroClipboard($('.copy-button'));
-		client.on('aftercopy', function(event) {
-			event.target.blur();
-		});
-	}
-
-	var initExtendTimeButton = function() {
-		$('#extend-time-button').click(function() {
-			extendTime();
-			this.blur();
-		});
-	}
-
-	var initNewAccountButton = function() {
-		$('#new-account-button').click(function() {
-			createNewAccount();
-			this.blur();
-		});
-	}
-
-	var initForwardModalButton = function(message) {
-		$('#forward-modal-button').off('click').click(function() {
-			hideMessage();
-			openForwardModal(message);
-		});
-	}
-
-	var initAccount = function() {
-		api.init().done(function(data) {
-			account = data.account;
-			updateAccountValues();
-			checkInbox();
-	    });
-	}
-
-	var updateAccountValues = function() {
-		updateEmailValue();
-		updateTimerValue();
-		if (account) {
-			showAccount();
-		} else {
-			hideAccount();
-		}
-	}
-
-	var updateEmailValue = function() {
-		$('#email').val(account ? account.email : '');
-	}
-
-	var updateTimerValue = function() {
-		$('#expire-in').val(account !== null ? readableTimedelta(account.expireIn) : '');
-	}
-
-	var showAccount = function() {
-		$('#account-details').removeClass('hidden');
-		$('#inbox').parent().removeClass('hidden');
-	}
-
-	var hideAccount = function() {
-		$('#inbox').parent().addClass('hidden');
-		$('#account-details').addClass('hidden');
-	}
-
-	var checkInbox = function() {
-		api.getInbox().done(function(data) {
-			var accountChanged = account && account.email != data.account.email;
-			if (accountChanged) {
-				account = data.account;
-				updateAccountValues();
-			} else if (account) {
-				account.expireIn = data.account.expireIn;
+		function initElements() {
+			function initForwardModalButton() {
+				$('#forward-modal-button').click(function() {
+					var _message = message;
+					close();
+					forwardModal.show(_message);
+				});
 			}
-			setInboxMessages(data.messages);
-		}).fail(function(jqxhr, textStatus, error) {
-			if (jqxhr.status == 410) {
-				accountExpired();
+
+			function initModal() {
+				$('#message-modal').on('hidden.bs.modal', function (e) {
+					console.log(message);
+					setMessage(null);
+					console.log(message);
+				});
 			}
-		});
-	}
 
-	var setInboxMessages = function(messages) {
-		var newTbody = $('<tbody>');
-		for (var i in messages) {
-			var message = messages[i];
-			var message_sender = message.sender_name || message.sender_address;
-			$('<tr>').addClass(message.read ? 'active' : '')
-				.append($('<td>').text(message_sender))
-				.append($('<td>').text(message.subject))
-				.append($('<td>').text(timestampToLocaleString(message.date)))
-				.click({'key': message.key}, function(event) {
-					openMessage(event.data.key);
-					$(this).addClass('active');
-				})
-				.appendTo(newTbody);
+			initForwardModalButton();
+			initModal();
 		}
-		$('#inbox tbody').replaceWith(newTbody);
-	}
 
-	var createNewAccount = function() {
-		api.createNewAccount().done(function(data) {
-			account = data.account;
-			updateAccountValues();
-			checkInbox();
-			if (localTimer === null) {
-				startLocalTimer();
+		function show(_message) {
+			setMessage(_message);
+			$('#message-modal').modal('show');
+		}
+
+		function setMessage(_message) {
+			message = _message;
+			bindMessageValues();
+		}
+
+		function bindMessageValues() {
+			var subject='', sender_name='', sender_address='', date='', html='';
+			if (message) {
+				subject = message.subject;
+				date = timestampToLocaleString(message.date);
+				html = message.html;
+				if (message.sender_name) {
+					sender_name = message.sender_name;
+					sender_address = '<' + message.sender_address + '>';
+				} else {
+					sender_name = message.sender_address;
+				}
 			}
-		});
-	}
-
-	var extendTime = function() {
-		api.extendTime().done(function(data) {
-			account = data.account;
-			updateAccountValues();
-		});
-	}
-
-	var openMessage = function(key) {
-		api.getMessage(key).done(function(data) {
-			displayMessage(data.message);
-		});
-	}
-
-	var displayMessage = function(message) {
-		initForwardModalButton(message);
-		$('#message-modal .modal-header .subject').text(message.subject);
-		if (message.sender_name) {
-			$('#message-modal .modal-header .sender span').text(message.sender_name);
-			$('#message-modal .modal-header .sender small').text('<'+message.sender_address+'>');
-		} else {
-			$('#message-modal .modal-header .sender span').text(message.sender_address);
-			$('#message-modal .modal-header .sender small').text('');
+			$('#message-modal .modal-header .subject').text(subject);
+			$('#message-modal .modal-header .sender span').text(sender_name);
+			$('#message-modal .modal-header .sender small').text(sender_address);
+			$('#message-modal .modal-header .date span').text(date);
+			$('#message-modal .modal-body').html(html);
+			bindAttachments();
 		}
-		$('#message-modal .modal-header .date span').text(timestampToLocaleString(message.date));
-		$('#message-modal .modal-body').html(message.html);
-		updateAttachmentList(message.attachments);
-		$('#message-modal').modal('show');
-	}
 
-	var hideMessage = function() {
-		$('#message-modal').modal('hide');
-	}
-
-	var updateAttachmentList = function(attachments) {
-		if (attachments.length == 0) {
-			$('#message-modal .modal-footer').addClass('hidden');
-		} else {
+		function bindAttachments() {
+			var attachments = message ? message.attachments : [];
 			var newAttachmentList = $('<ul class="attachments">');
 			for (var i in attachments) {
 				var attachment = attachments[i];
@@ -198,50 +244,87 @@ var tethbox = (function() {
 					.appendTo(newAttachmentList);
 			}
 			$('#message-modal .attachments').replaceWith(newAttachmentList);
-			$('#message-modal .modal-footer').removeClass('hidden');
-		}
-	}
-
-	var openForwardModal = function(message) {
-		$('#forward-modal .alert').remove();
-		$('#forward-address').val('');
-		initForwardEmailInput(message);
-		initForwardButton(message);
-		$('#forward-modal').modal('show');
-	}
-
-	var initForwardEmailInput = function(message) {
-		$('#forward-address').keyup(function(e) {
-			if (e.which != 13) {
-				checkFrowardEmailAddressValidity();
-			}
-		}).keypress(function(e) {
-			if (e.which == 13) {
-				e.preventDefault();
-				forwardMessage(message);
-			}
-		});
-	}
-
-	var initForwardButton = function(message) {
-		$('#forward-button').off('click').click(function() {
-			forwardMessage(message);
-		});
-	}
-
-	var checkFrowardEmailAddressValidity = function() {
-		emailAddress = $('#forward-address').val();
-		if (emailAddress.length > 0) {
-			if (/^[^@]+@[^@]+\.[^@]+$/.test(emailAddress)) {
-				$('#forward-address').parent().removeClass('has-warning').addClass('has-success');
+			if (attachments.length == 0) {
+				$('#message-modal .modal-footer').addClass('hidden');
 			} else {
-				$('#forward-address').parent().removeClass('has-success').addClass('has-warning');
+				$('#message-modal .modal-footer').removeClass('hidden');
 			}
 		}
-	}
 
-	var forwardMessage = function(message) {
-		var showAlert = function(type, text) {
+		function close() {
+			$('#message-modal').modal('hide');
+		}
+
+		return {
+			initElements: initElements,
+			show: show,
+			close: close,
+		};
+	}();
+
+	var forwardModal = function() {
+		var message = null;
+
+		function initElements() {
+			function initAddressInput() {
+				$('#forward-address').keyup(function(e) {
+					if (e.which != 13) {
+						checkFrowardEmailAddressValidity();
+					}
+				}).keypress(function(e) {
+					if (e.which == 13) {
+						e.preventDefault();
+						forwardMessage(message);
+					}
+				});
+			}
+
+			function initForwardButton() {
+				$('#forward-button').click(function() {
+					forwardMessage(message);
+				});
+			}
+
+			function initModal() {
+				$('#forward-modal').on('hidden.bs.modal', function (e) {
+					message = null;
+					$('#forward-modal .alert').remove();
+					$('#forward-address').val('');
+					$('#forward-address').parent().removeClass('has-success').removeClass('has-warning');
+				});
+			}
+
+			initAddressInput();
+			initForwardButton();
+			initModal();
+		}
+
+		function checkFrowardEmailAddressValidity() {
+			emailAddress = $('#forward-address').val();
+			if (emailAddress.length > 0) {
+				if (/^[^@]+@[^@]+\.[^@]+$/.test(emailAddress)) {
+					$('#forward-address').parent().removeClass('has-warning').addClass('has-success');
+				} else {
+					$('#forward-address').parent().removeClass('has-success').addClass('has-warning');
+				}
+			} else {
+				$('#forward-address').parent().removeClass('has-success').removeClass('has-warning');
+			}
+		}
+
+		function forwardMessage(message) {
+			hideAlert();
+			var address = $('#forward-address').val();
+			api.forwardMessage(message.key, address).done(function(data) {
+				showAlert('success', 'Email forwarded successfully.');
+			}).fail(function(data) {
+				if (data.status == 400 && data.responseJSON && data.responseJSON.error) {
+					showAlert('danger', data.responseJSON.error);
+				}
+			});
+		}
+
+		function showAlert(type, text) {
 			var alertClass = 'alert-' + type;
 			$('<div class="alert" role="alert">')
 				.addClass(alertClass)
@@ -249,54 +332,53 @@ var tethbox = (function() {
 				.appendTo('#forward-modal .modal-body');
 		}
 
-		$('#forward-modal .alert').remove();
-		var address = $('#forward-address').val();
-		api.forwardMessage(message.key, address).done(function(data) {
-			showAlert('success', 'Email forwarded successfully.');
-		}).fail(function(data) {
-			if (data.status == 400 && data.responseJSON && data.responseJSON.error) {
-				showAlert('danger', data.responseJSON.error);
-			}
-		});
-	}
-
-	var hideForwardModal = function() {
-		$('#forward-modal').modal('hide');
-	}
-
-	var accountExpired = function() {
-		resetData();
-		hideMessage();
-		hideForwardModal();
-	}
-
-	var resetData = function() {
-		account = null;
-		stopLocalTimer();
-		updateAccountValues();
-		setInboxMessages([]);
-	}
-
-	var startLocalTimer = function() {
-		localTimer = setTimeout(function(){
-			startLocalTimer();
-			if (account && account.expireIn > 0) {
-				account.expireIn--;
-				updateTimerValue();
-			}
-			var now = new Date();
-			var checkInboxInterval = account && account.expireIn > 0 ? 10 : 1;
-			if (now.getSeconds() % checkInboxInterval == 0) {
-				checkInbox();
-			}
-		}, 1000);
-	}
-
-	var stopLocalTimer = function() {
-		if (localTimer !== null) {
-			clearTimeout(localTimer);
-			localTimer = null;
+		function hideAlert() {
+			$('#forward-modal .alert').remove();
 		}
+
+		function show(_message) {
+			message = _message;
+			$('#forward-modal').modal('show');
+		}
+
+		function close() {
+			$('#forward-modal').modal('hide');
+		}
+
+		return {
+			initElements: initElements,
+			show: show,
+			close: close,
+		};
+	}();
+
+	var initElements = function() {
+		function initCopyButton() {
+			var client = new ZeroClipboard($('.copy-button'));
+			client.on('aftercopy', function(event) {
+				event.target.blur();
+			});
+		}
+
+		function initExtendTimeButton() {
+			$('#extend-time-button').click(function() {
+				accountManager.extendTime();
+				this.blur();
+			});
+		}
+
+		function initNewAccountButton() {
+			$('#new-account-button').click(function() {
+				accountManager.createNewAccount();
+				this.blur();
+			});
+		}
+
+		initCopyButton();
+		initExtendTimeButton();
+		initNewAccountButton();
+		messageModal.initElements();
+		forwardModal.initElements();
 	}
 
 	var readableTimedelta = function(timedelta) {
@@ -304,10 +386,6 @@ var tethbox = (function() {
 		var minutes = '' + date.getMinutes();
 		var seconds = (date.getSeconds() < 10 ? '0' : '') + date.getSeconds();
 		return minutes + ':' + seconds;
-	}
-
-	var timestampToLocaleString = function(timestamp) {
-		return new Date(timestamp * 1000).toLocaleString()
 	}
 
 	var readableFileSize = function(bytes) {
@@ -325,11 +403,14 @@ var tethbox = (function() {
 		return number.toFixed(1).replace('.0', '') + ' ' + unit;
 	}
 
+	var timestampToLocaleString = function(timestamp) {
+		return new Date(timestamp * 1000).toLocaleString()
+	}
+
 	return {
 		init: function() {
 			initElements();
-			initAccount();
-			startLocalTimer();
+			accountManager.init();
 		}
 	};
 }());
