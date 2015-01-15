@@ -118,7 +118,7 @@ var tethbox = (function() {
 				$('<tr>').addClass(message.read ? 'active' : '')
 					.append($('<td>').text(message_sender))
 					.append($('<td>').text(message.subject))
-					.append($('<td>').text(timestampToLocaleString(message.date)))
+					.append($('<td>').text(timestampToLocaleTimeString(message.date)))
 					.click({'key': message.key}, function(event) {
 						openMessage(event.data.key);
 						$(this).addClass('active');
@@ -279,6 +279,7 @@ var tethbox = (function() {
 
 			function initForwardButton() {
 				$('#forward-button').click(function() {
+					this.blur();
 					var button = $(this).addClass('disabled').button('forwarding');
 					forwardMessage(message).always(function() {
 						button.button('reset').removeClass('disabled');
@@ -411,6 +412,10 @@ var tethbox = (function() {
 
 	var timestampToLocaleString = function(timestamp) {
 		return new Date(timestamp * 1000).toLocaleString()
+	}
+
+	var timestampToLocaleTimeString = function(timestamp) {
+		return new Date(timestamp * 1000).toLocaleTimeString()
 	}
 
 	return {
