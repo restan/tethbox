@@ -54,7 +54,7 @@ class Account(ndb.Model):
 
     @property
     def messages(self):
-        return Message.query(ancestor=self.key).order(Message.date)
+        return Message.query(ancestor=self.key).order(-Message.date)
 
     @classmethod
     def get_by_email(cls, email):
