@@ -70,6 +70,7 @@ var tethbox = (function() {
 		}();
 
 		var account = null;
+		var messages = [];
 
 		function init() {
 			return api.init().done(function(data) {
@@ -83,7 +84,7 @@ var tethbox = (function() {
 		function checkInbox() {
 			return api.getInbox().done(function(data) {
 				setAccount(data.account);
-				setInboxMessages(data.messages);
+				setMessages(data.messages);
 			}).fail(function(jqxhr, textStatus, error) {
 				if (jqxhr.status == 410) {
 					expireAccount();
@@ -110,7 +111,12 @@ var tethbox = (function() {
 			}
 		}
 
-		function setInboxMessages(messages) {
+		function setMessages(_messages) {
+			messages = _messages;
+			bindMessagesValues();
+		}
+
+		function bindMessagesValues() {
 			var newTbody = $('<tbody>');
 			for (var i in messages) {
 				var message = messages[i];
@@ -119,19 +125,36 @@ var tethbox = (function() {
 					.append($('<td>').text(message_sender))
 					.append($('<td>').text(message.subject))
 					.append($('<td>').text(timestampToLocaleTimeString(message.date)))
-					.click({'key': message.key}, function(event) {
-						openMessage(event.data.key);
-						$(this).addClass('active');
+					.click({'message': message}, function(event) {
+						openMessage(event.data.message);
+						setMessageAsRead(event.data.message);
 					})
 					.appendTo(newTbody);
 			}
 			$('#inbox tbody').replaceWith(newTbody);
+			updatePageTitle();
 		}
 
-		function openMessage(key) {
-			api.getMessage(key).done(function(data) {
+		function openMessage(message) {
+			api.getMessage(message.key).done(function(data) {
 				messageModal.show(data.message);
 			});
+		}
+
+		function setMessageAsRead(message) {
+			message.read = true;
+			bindMessagesValues();
+		}
+
+		function updatePageTitle() {
+			var unreadMessages = 0;
+			for (var i in messages) {
+				if (!messages[i].read) {
+					unreadMessages++;
+				}
+			}
+			var title = "TethBox " + (unreadMessages > 0 ? "["+unreadMessages+"] " : "") + "- temporary mailbox";
+			$('head title').text(title);
 		}
 
 		function extendTime() {
@@ -143,7 +166,7 @@ var tethbox = (function() {
 		function expireAccount() {
 			localTimer.stop();
 			setAccount(null);
-			setInboxMessages([]);
+			setMessages([]);
 			messageModal.close();
 			forwardModal.close();
 		}
