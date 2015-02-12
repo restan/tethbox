@@ -382,7 +382,7 @@ var tethbox = (function() {
 		};
 	}();
 
-	var initElements = function() {
+	function initElements() {
 		function initCopyButton() {
 			var client = new ZeroClipboard($('.copy-button'));
 			client.on('aftercopy', function(event) {
@@ -411,14 +411,14 @@ var tethbox = (function() {
 		forwardModal.initElements();
 	}
 
-	var readableTimedelta = function(timedelta) {
+	function readableTimedelta(timedelta) {
 		var date = new Date(timedelta * 1000);
 		var minutes = '' + date.getMinutes();
 		var seconds = (date.getSeconds() < 10 ? '0' : '') + date.getSeconds();
 		return minutes + ':' + seconds;
 	}
 
-	var readableFileSize = function(bytes) {
+	function readableFileSize(bytes) {
 		var number = bytes;
 		var units = ['kB', 'MB', 'GB'];
 		var unit = 'B'
@@ -433,11 +433,11 @@ var tethbox = (function() {
 		return number.toFixed(1).replace('.0', '') + ' ' + unit;
 	}
 
-	var timestampToLocaleString = function(timestamp) {
+	function timestampToLocaleString(timestamp) {
 		return new Date(timestamp * 1000).toLocaleString()
 	}
 
-	var timestampToLocaleTimeString = function(timestamp) {
+	function timestampToLocaleTimeString(timestamp) {
 		return new Date(timestamp * 1000).toLocaleTimeString()
 	}
 
