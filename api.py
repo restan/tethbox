@@ -193,10 +193,10 @@ config = {
 }
 
 app = WSGIApplication([
-    Route('/init', InitHandler),
-    Route('/inbox', InboxHandler),
-    Route('/extendTime', ExtendTimeHandler),
-    Route('/newAccount', NewAccountHandler),
+    Route('/account/init', InitHandler),
+    Route('/account/inbox', InboxHandler),
+    Route('/account/extend', ExtendTimeHandler),
+    Route('/account/new', NewAccountHandler),
     Route('/message/<key>', MessageHandler),
     Route('/message/<key>/forward', ForwardMessageHandler),
     Route('/attachment/<key>', AttachmentDownloadHandler),

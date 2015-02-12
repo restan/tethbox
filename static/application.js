@@ -2,19 +2,19 @@ var tethbox = (function() {
 
 	var api = {
 		init: function() {
-			return $.getJSON('/init');
+			return $.getJSON('/account/init');
 		},
 
 		getInbox: function() {
-			return $.getJSON('/inbox');
+			return $.getJSON('/account/inbox');
 		},
 
 		createNewAccount: function() {
-			return $.getJSON('/newAccount');
+			return $.getJSON('/account/new');
 		},
 
 		extendTime: function() {
-			return $.getJSON('/extendTime');
+			return $.getJSON('/account/extend');
 		},
 
 		getMessage: function(key) {
