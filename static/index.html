@@ -2,6 +2,7 @@
 <html>
 	<head>
 		<meta charset="utf-8">
+		<meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1, user-scalable=no">
 		<title>TethBox - temporary mailbox</title>
 		<link href="//maxcdn.bootstrapcdn.com/bootswatch/3.2.0/united/bootstrap.min.css" rel="stylesheet">
 		<link href="/style.css" rel="stylesheet">
@@ -10,9 +11,11 @@
 		<div class="jumbotron">
 			<div class="container text-center">
 				<h1>TethBox</h1>
-				<p>
-					Disposable temporary email address service providing <br/> a way to hide your real email and avoid spam.
-				</p>
+				<div class="row">
+					<p class="col-sm-8 col-sm-offset-2">
+						Disposable temporary email address service providing a way to hide your real email and avoid spam.
+					</p>
+				</div>
 				<form id="account-management" class="form-horizontal col-md-6 col-md-offset-3 account-data" role="form">
 					<div id="account-details" class="hidden">
 						<div class="form-group">
@@ -39,7 +42,7 @@
 						</div>
 					</div>
 					<div class="form-group">
-						<div class="col-md-4 col-md-offset-4">
+						<div class="col-sm-4 col-sm-offset-4">
 							<button id="new-account-button" class="btn btn-primary col-xs-12" type="button">Get new address</button>
 						</div>
 					</div>
@@ -109,7 +112,7 @@
 
 
 		<a href="https://github.com/restan/tethbox">
-			<img style="position: absolute; top: 0; right: 0; border: 0;" src="https://camo.githubusercontent.com/38ef81f8aca64bb9a64448d0d70f1308ef5341ab/68747470733a2f2f73332e616d617a6f6e6177732e636f6d2f6769746875622f726962626f6e732f666f726b6d655f72696768745f6461726b626c75655f3132313632312e706e67" alt="Fork me on GitHub" data-canonical-src="https://s3.amazonaws.com/github/ribbons/forkme_right_darkblue_121621.png">
+			<img style="position: absolute; top: 0; right: 0; border: 0; max-width: 25%;" src="https://camo.githubusercontent.com/38ef81f8aca64bb9a64448d0d70f1308ef5341ab/68747470733a2f2f73332e616d617a6f6e6177732e636f6d2f6769746875622f726962626f6e732f666f726b6d655f72696768745f6461726b626c75655f3132313632312e706e67" alt="Fork me on GitHub" data-canonical-src="https://s3.amazonaws.com/github/ribbons/forkme_right_darkblue_121621.png">
 		</a>
 
 		<script src="https://ajax.googleapis.com/ajax/libs/jquery/1.11.1/jquery.min.js"></script>
