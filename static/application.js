@@ -383,11 +383,19 @@ var tethbox = (function() {
 	}();
 
 	function initElements() {
-		function initCopyButton() {
-			var client = new ZeroClipboard($('.copy-button'));
-			client.on('aftercopy', function(event) {
-				event.target.blur();
-			});
+		function initEmailButton() {
+			if (isFlashEnabled()) {
+				$('#email-button').text('Copy');
+				var client = new ZeroClipboard($('#email-button'));
+				client.on('aftercopy', function(event) {
+					event.target.blur();
+				});
+			} else {
+				$('#email-button').click(function() {
+					$('#email').select();
+					this.blur();
+				});
+			}
 		}
 
 		function initExtendTimeButton() {
@@ -404,7 +412,7 @@ var tethbox = (function() {
 			});
 		}
 
-		initCopyButton();
+		initEmailButton();
 		initExtendTimeButton();
 		initNewAccountButton();
 		messageModal.initElements();
@@ -439,6 +447,16 @@ var tethbox = (function() {
 
 	function timestampToLocaleTimeString(timestamp) {
 		return new Date(timestamp * 1000).toLocaleTimeString()
+	}
+
+	function isFlashEnabled() {
+		try {
+			return new Boolean(new ActiveXObject('ShockwaveFlash.ShockwaveFlash'));
+		} catch (e) {
+			return navigator.mimeTypes &&
+				navigator.mimeTypes['application/x-shockwave-flash'] != undefined &&
+				navigator.mimeTypes['application/x-shockwave-flash'].enabledPlugin;
+		}
 	}
 
 	return {
