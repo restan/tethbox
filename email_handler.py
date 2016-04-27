@@ -73,7 +73,7 @@ class IncomingMailHandler(InboundMailHandler):
             reply_to=getattr(mail_message, 'reply_to', None),
             cc=getattr(mail_message, 'cc', None),
             bcc=getattr(mail_message, 'bcc', None),
-            subject=mail_message.subject if hasattr(mail_message, "subject") else "no subject",
+            subject=getattr(mail_message, 'subject', None),
             date=datetime.now(),
             body=mail_message.body.decode(),
             html=clean_html(mail_message.html.decode())

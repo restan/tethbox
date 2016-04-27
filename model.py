@@ -103,7 +103,7 @@ class Message(ndb.Model):
     reply_to = ndb.StringProperty(required=False)
     cc = ndb.StringProperty(required=False)
     bcc = ndb.StringProperty(required=False)
-    subject = ndb.StringProperty(required=True)
+    subject = ndb.StringProperty(required=False)
     date = ndb.DateTimeProperty(required=True)
     body = ndb.TextProperty()
     html = ndb.TextProperty()

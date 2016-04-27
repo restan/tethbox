@@ -123,7 +123,7 @@ var tethbox = (function() {
 				var message_sender = message.sender_name || message.sender_address;
 				$('<tr>').addClass(message.read ? 'active' : '')
 					.append($('<td>').text(message_sender))
-					.append($('<td>').text(message.subject))
+					.append($('<td>').text(message.subject || '(no subject)'))
 					.append($('<td>').text(timestampToLocaleTimeString(message.date)))
 					.click({'message': message}, function(event) {
 						openMessage(event.data.message);
@@ -235,7 +235,7 @@ var tethbox = (function() {
 		function bindMessageValues() {
 			var subject='', sender_name='', sender_address='', date='', html='';
 			if (message) {
-				subject = message.subject;
+				subject = message.subject || '(no subject)';
 				date = timestampToLocaleString(message.date);
 				html = message.html;
 				if (message.sender_name) {

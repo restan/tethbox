@@ -179,7 +179,7 @@ class ForwardMessageHandler(SessionAwareHandlerMixin, RequestHandler):
                     sender=formataddr((message.sender_name, account.email)),
                     to=formataddr((message.receiver_name, email_address)),
                     reply_to=message.reply_to or message.sender_address,
-                    subject=message.subject,
+                    subject=message.subject or '',
                     body=message.body,
                     html=message.html,
                 )
