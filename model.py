@@ -130,6 +130,10 @@ class Message(ndb.Model):
             for node in tree.xpath("//*[@src='cid:%s']" % content_id):
                 node.attrib['src'] = content.url
 
+        # Fix external links
+        for link in tree.xpath("//a"):
+            link.attrib['target'] = "_blank"
+
         return lxml.html.tostring(tree)
 
     def delete(self):
