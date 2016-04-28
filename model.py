@@ -2,6 +2,7 @@ from datetime import datetime, timedelta
 import logging
 import string
 
+import lxml.html
 import cloudstorage as gcs
 from google.appengine.api import app_identity
 from google.appengine.ext import ndb, blobstore
@@ -111,7 +112,25 @@ class Message(ndb.Model):
 
     @property
     def attachments(self):
-        return Attachment.query(ancestor=self.key)
+        return Attachment.query(Attachment.content_id == None, ancestor=self.key)
+
+    @property
+    def embedded_contents(self):
+        return Attachment.query(Attachment.content_id != None, ancestor=self.key)
+
+    @property
+    def fixed_html(self):
+        tree = lxml.html.fromstring(self.html)
+
+        # Fix embedded content links
+        for content in self.embedded_contents:
+            content_id = content.content_id
+            if content_id.startswith('<') and content_id.endswith('>'):
+                content_id = content_id[1:-1]
+            for node in tree.xpath("//*[@src='cid:%s']" % content_id):
+                node.attrib['src'] = content.url
+
+        return lxml.html.tostring(tree)
 
     def delete(self):
         attachments_to_delete = Attachment.query(ancestor=self.key).fetch()
@@ -129,19 +148,24 @@ class Message(ndb.Model):
             'read': self.read
         }
         if full:
-            result['html'] = self.html
+            result['html'] = self.fixed_html
             result['attachments'] = [attachment.api_repr() for attachment in self.attachments]
         return result
 
 
 class Attachment(ndb.Model):
     filename = ndb.StringProperty(required=True)
+    content_id = ndb.StringProperty(required=False)
     size = ndb.IntegerProperty(required=True)
     gcs_filename = ndb.StringProperty(required=True)
 
     @property
     def blobkey(self):
         return blobstore.BlobKey(blobstore.create_gs_key('/gs%s' % self.gcs_filename))
+
+    @property
+    def url(self):
+        return '/attachment/%s' % self.key.urlsafe()
 
     def delete(self):
         try:
@@ -154,5 +178,6 @@ class Attachment(ndb.Model):
         return {
             'key': self.key.urlsafe(),
             'filename': self.filename,
-            'size': self.size
+            'size': self.size,
+            'url': self.url
         }

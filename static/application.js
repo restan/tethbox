@@ -21,10 +21,6 @@ var tethbox = (function() {
 			return $.getJSON('/message/' + key);
 		},
 
-		getAttachmentUrl: function(key) {
-			return '/attachment/' + key;
-		},
-
 		forwardMessage: function(key, address) {
 			return $.post('/message/' + key + '/forward', {'address': address});
 		}
@@ -260,7 +256,7 @@ var tethbox = (function() {
 				var attachment = attachments[i];
 				$('<li>')
 					.append($('<span class="glyphicon glyphicon-paperclip" aria-hidden="true">'))
-					.append($('<a>').attr({'href': api.getAttachmentUrl(attachment.key)}).text(attachment.filename))
+					.append($('<a>').attr({'href': attachment.url}).text(attachment.filename))
 					.append(' (' + readableFileSize(attachment.size) + ')')
 					.appendTo(newAttachmentList);
 			}

@@ -82,9 +82,8 @@ class IncomingMailHandler(InboundMailHandler):
         self._store_attachments(mail_message, db_message)
 
     def _store_attachments(self, mail_message, db_message):
-        if hasattr(mail_message, 'attachments'):
-            for mail_attachment in mail_message.attachments:
-                self._store_attachment(mail_attachment, db_message)
+        for mail_attachment in getattr(mail_message, 'attachments', []):
+            self._store_attachment(mail_attachment, db_message)
 
     def _store_attachment(self, mail_attachment, db_message):
         gcs_filename = create_gcs_attachment_filename(db_message)
@@ -95,11 +94,11 @@ class IncomingMailHandler(InboundMailHandler):
         db_attachment = Attachment(
             parent=db_message.key,
             filename=mail_attachment.filename,
+            content_id=mail_attachment.content_id,
             size=attachment_size,
             gcs_filename=gcs_filename
         )
         db_attachment.put()
-
 
 
 app = webapp2.WSGIApplication([IncomingMailHandler.mapping()], debug=True)
