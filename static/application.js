@@ -107,7 +107,19 @@ var tethbox = (function() {
 			}
 		}
 
+		function getMessage(key) {
+			for (var i in messages) {
+				if (messages[i].key == key) {
+					return messages[i];
+				}
+			}
+		}
+
 		function setMessages(_messages) {
+			for (var i in _messages) {
+				var _message = _messages[i];
+				$.extend(_message, getMessage(_message.key));
+			}
 			messages = _messages;
 			bindMessagesValues();
 		}
@@ -132,9 +144,15 @@ var tethbox = (function() {
 		}
 
 		function openMessage(message) {
-			api.getMessage(message.key).done(function(data) {
-				messageModal.show(data.message);
-			});
+			if (message.fetched) {
+			    messageModal.show(message);
+			} else {
+				api.getMessage(message.key).done(function(data) {
+					$.extend(message, data.message);
+					message.fetched = true;
+					messageModal.show(message);
+				});
+			}
 		}
 
 		function setMessageAsRead(message) {
