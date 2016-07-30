@@ -64,6 +64,8 @@ class IncomingMailHandler(InboundMailHandler):
         if not account or account.valid_until < datetime.now():
             return
         sender_name, sender_address = parseaddr(mail_message.sender)
+        body = mail_message.body.decode() if hasattr(mail_message, 'body') else None
+        html = clean_html(mail_message.html.decode()) if hasattr(mail_message, 'html') else None
         db_message = Message(
             parent=account.key,
             sender_name=sender_name,
@@ -75,8 +77,8 @@ class IncomingMailHandler(InboundMailHandler):
             bcc=getattr(mail_message, 'bcc', None),
             subject=getattr(mail_message, 'subject', None),
             date=datetime.now(),
-            body=mail_message.body.decode(),
-            html=clean_html(mail_message.html.decode())
+            body=body,
+            html=html
         )
         db_message.put()
         self._store_attachments(mail_message, db_message)
