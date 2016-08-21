@@ -77,7 +77,7 @@ class InboxHandler(SessionAwareHandlerMixin, RequestHandler):
                 'messages': [message.api_repr() for message in account.messages]
             }
         else:
-            self.abort(410)
+            self.abort(410, headers={'Expires': '0'})
 
 
 class ExtendTimeHandler(SessionAwareHandlerMixin, RequestHandler):
