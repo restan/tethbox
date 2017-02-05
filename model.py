@@ -1,3 +1,4 @@
+import cgi
 from datetime import datetime, timedelta
 import logging
 import string
@@ -119,22 +120,27 @@ class Message(ndb.Model):
         return Attachment.query(Attachment.content_id != None, ancestor=self.key)
 
     @property
-    def fixed_html(self):
-        tree = lxml.html.fromstring(self.html)
+    def html_to_display(self):
+        if self.html is not None:
+            tree = lxml.html.fromstring(self.html)
 
-        # Fix embedded content links
-        for content in self.embedded_contents:
-            content_id = content.content_id
-            if content_id.startswith('<') and content_id.endswith('>'):
-                content_id = content_id[1:-1]
-            for node in tree.xpath("//*[@src='cid:%s']" % content_id):
-                node.attrib['src'] = content.url
+            # Fix embedded content links
+            for content in self.embedded_contents:
+                content_id = content.content_id
+                if content_id.startswith('<') and content_id.endswith('>'):
+                    content_id = content_id[1:-1]
+                for node in tree.xpath("//*[@src='cid:%s']" % content_id):
+                    node.attrib['src'] = content.url
 
-        # Fix external links
-        for link in tree.xpath("//a"):
-            link.attrib['target'] = "_blank"
+            # Amend links to open in new tab
+            for link in tree.xpath("//a"):
+                link.attrib['target'] = "_blank"
 
-        return lxml.html.tostring(tree)
+            return lxml.html.tostring(tree)
+        elif self.body is not None:
+            return cgi.escape(self.body).replace("\n", "<br>")
+        else:
+            return None
 
     def delete(self):
         attachments_to_delete = Attachment.query(ancestor=self.key).fetch()
@@ -152,7 +158,7 @@ class Message(ndb.Model):
             'read': self.read
         }
         if full:
-            result['html'] = self.fixed_html
+            result['html'] = self.html_to_display
             result['attachments'] = [attachment.api_repr() for attachment in self.attachments]
         return result
 

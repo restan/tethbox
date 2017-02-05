@@ -251,7 +251,7 @@ var tethbox = (function() {
 			if (message) {
 				subject = message.subject || '(no subject)';
 				date = timestampToLocaleString(message.date);
-				html = message.html;
+				html = message.html || '(no body)';
 				if (message.sender_name) {
 					sender_name = message.sender_name;
 					sender_address = '<' + message.sender_address + '>';
